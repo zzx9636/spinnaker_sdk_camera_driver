@@ -5,6 +5,7 @@
 #include "serialization.h"
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/filesystem.hpp>
+#include <string>
 
 using namespace Spinnaker;
 using namespace Spinnaker::GenApi;
@@ -62,6 +63,7 @@ namespace acquisition {
         void make_master() { MASTER_ = true; ROS_DEBUG_STREAM( "camera " << get_id() << " set as master"); }
         bool is_master() { return MASTER_; }
         void set_color(bool flag) { COLOR_ = flag; }
+        void set_cam_type(string type) { TYPE_ = type; }
         
     private:
 
@@ -74,6 +76,7 @@ namespace acquisition {
 
         bool COLOR_;
         bool MASTER_;
+        string TYPE_ = "BFS"; // BFS for BlackFly S, and BF for BlackFly
         uint64_t GET_NEXT_IMAGE_TIMEOUT_;
 
     };

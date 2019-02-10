@@ -146,6 +146,7 @@ void acquisition::Capture::load_cameras() {
                     master_set = true;
                     MASTER_CAM_ = cam_counter;
                 }
+                cam.set_cam_type(cam_types_[i]);
                 
                 ImagePtr a_null;
                 pResultImages_.push_back(a_null);
@@ -238,6 +239,27 @@ void acquisition::Capture::read_parameters() {
         cam_ids_.push_back(to_string(cam_id_vec[i]));
         ROS_INFO_STREAM("    " << to_string(cam_id_vec[i]));
     }
+
+    std::vector<int> cam_type_vec;
+    if (nh_pvt_.getParam("cam_types", cam_type_vec)){
+        ROS_INFO_STREAM("  Camera types:");
+        ROS_ASSERT_MSG(num_ids == cam_type_vec.size(),"If cam_aliases are provided, they should be the same number as cam_ids and should correspond in order!");
+        for (int i=0; i<cam_type_vec.size(); i++) {
+            if (cam_type_vec[i]){
+                ROS_INFO_STREAM("    " << cam_ids_[i] << " >> BlackFly S");
+                cam_types_.push_back("BFS");
+            }
+            else{
+                ROS_INFO_STREAM("    " << cam_ids_[i] << " >> BlackFly"); 
+                cam_types_.push_back("BF");
+            } 
+        }
+    } else {
+        ROS_INFO_STREAM("  No camera types provided. Assume all camera are BlackFly S.");
+        for (int i=0; i<cam_ids_.size(); i++)
+            cam_types_.push_back("BFS");
+    }
+
 
     std::vector<string> cam_alias_vec;
     if (nh_pvt_.getParam("cam_aliases", cam_names_)){
@@ -336,7 +358,10 @@ void acquisition::Capture::read_parameters() {
             SOFT_FRAME_RATE_CTRL_=true;
             ROS_INFO("  Using Software rate control, rate set to: %d",soft_framerate_);
         }
-        else ROS_INFO("  'soft_framerate'=%d, software rate control set to off",soft_framerate_);
+        else{
+            soft_framerate_ = 20;
+            ROS_INFO("  'soft_framerate'=0, software rate control set to off");
+        }
     }
     else ROS_WARN("  'soft_framerate' Parameter not set, using default behavior: No Software Rate Control ");
 
@@ -441,14 +466,6 @@ void acquisition::Capture::read_parameters() {
         ROS_INFO("  Camera coeffs provided, camera info messges will be published.");
         else
             ROS_INFO("  Camera coeffs not provided correctly, camera info messges will not be published.");
-
-//    ROS_ASSERT_MSG(my_list.getType()
-//    int num_ids = cam_id_vec.size();
-//    for (int i=0; i < num_ids; i++){
-//        cam_ids_.push_back(to_string(cam_id_vec[i]));
-//        ROS_INFO_STREAM("    " << to_string(cam_id_vec[i]));
-//    }
-
 }
 
 
@@ -474,24 +491,23 @@ void acquisition::Capture::init_array() {
 }
 
 void acquisition::Capture::init_cameras(bool soft = false) {
-
+    // when soft, only check is camera pointer can be initialized or not
     ROS_INFO_STREAM("Initializing cameras...");
-    
     // Set cameras 1 to 4 to continuous
-    for (int i = numCameras_-1 ; i >=0 ; i--) {
-                                
+    for (int i = numCameras_-1 ; i >=0 ; i--) {                
         ROS_DEBUG_STREAM("Initializing camera " << cam_ids_[i] << "...");
-
-        try {
-            
+        try {         
             cams[i].init();
-
             if (!soft) {
-
-                cams[i].set_color(color_);
-                cams[i].setIntValue("BinningHorizontal", binning_);
-                cams[i].setIntValue("BinningVertical", binning_);
-
+                
+                // setting for blackfly S only
+                //cams[i].setIntValue("BinningHorizontal", binning_);
+                //cams[i].setIntValue("BinningVertical", binning_);
+                // cams[i].setIntValue("DecimationHorizontal", decimation_);
+                // cams[i].setIntValue("DecimationVertical", decimation_);
+                // cams[i].setFloatValue("AcquisitionFrameRate", 5.0);
+                
+                // set exposure mode
                 cams[i].setEnumValue("ExposureMode", "Timed");
                 if (exposure_time_ > 0) { 
                     cams[i].setEnumValue("ExposureAuto", "Off");
@@ -499,44 +515,47 @@ void acquisition::Capture::init_cameras(bool soft = false) {
                 } else {
                     cams[i].setEnumValue("ExposureAuto", "Continuous");
                 }
-                
-                // cams[i].setIntValue("DecimationHorizontal", decimation_);
-                // cams[i].setIntValue("DecimationVertical", decimation_);
-                // cams[i].setFloatValue("AcquisitionFrameRate", 5.0);
-
+                              
+                // set color mode for camera
+                cams[i].set_color(color_);
                 if (color_)
                     cams[i].setEnumValue("PixelFormat", "BGR8");
                     else
                         cams[i].setEnumValue("PixelFormat", "Mono8");
                 cams[i].setEnumValue("AcquisitionMode", "Continuous");
-                
-                // set only master to be software triggered
-                if (cams[i].is_master()) { 
-                    if (MAX_RATE_SAVE_){
-                      cams[i].setEnumValue("LineSelector", "Line2");
-                      cams[i].setEnumValue("LineMode", "Output");
-                      cams[i].setBoolValue("AcquisitionFrameRateEnable", false);
-                      //cams[i].setFloatValue("AcquisitionFrameRate", 170);
-                    }else{
-                      cams[i].setEnumValue("TriggerMode", "On");
-                      cams[i].setEnumValue("LineSelector", "Line2");
-                      cams[i].setEnumValue("LineMode", "Output");
-                      cams[i].setEnumValue("TriggerSource", "Software");
+                                
+                if(SOFT_FRAME_RATE_CTRL_){
+                    if (cams[i].is_master()) { 
+                        // set only master to be software triggered
+                        if (MAX_RATE_SAVE_){
+                        cams[i].setEnumValue("LineSelector", "Line2");
+                        cams[i].setEnumValue("LineMode", "Output");
+                        cams[i].setBoolValue("AcquisitionFrameRateEnable", false);
+                        ROS_DEBUG_STREAM("set camera "<<i<<" to master");
+                        cams[i].setFloatValue("AcquisitionFrameRate", 170);
+                        }else{
+                        cams[i].setEnumValue("TriggerMode", "On");
+                        cams[i].setEnumValue("LineSelector", "Line2");
+                        cams[i].setEnumValue("LineMode", "Output");
+                        cams[i].setEnumValue("TriggerSource", "Software");
+                        }
+                        //cams[i].setEnumValue("LineSource", "ExposureActive");
+                    } else {
+                        cams[i].setEnumValue("TriggerMode", "On");
+                        cams[i].setEnumValue("LineSelector", "Line3");
+                        cams[i].setEnumValue("TriggerSource", "Line3");
+                        cams[i].setEnumValue("TriggerSelector", "FrameStart");
+                        cams[i].setEnumValue("LineMode", "Input");                
+                        //cams[i].setFloatValue("TriggerDelay", 40.0);
+                        cams[i].setEnumValue("TriggerOverlap", "ReadOut");//"Off"
+                        cams[i].setEnumValue("TriggerActivation", "RisingEdge");
                     }
-                    //cams[i].setEnumValue("LineSource", "ExposureActive");
-
-
-                } else {
-                    cams[i].setEnumValue("TriggerMode", "On");
-                    cams[i].setEnumValue("LineSelector", "Line3");
-                    cams[i].setEnumValue("TriggerSource", "Line3");
-                    cams[i].setEnumValue("TriggerSelector", "FrameStart");
-                    cams[i].setEnumValue("LineMode", "Input");
-                    
-//                    cams[i].setFloatValue("TriggerDelay", 40.0);
-                    cams[i].setEnumValue("TriggerOverlap", "ReadOut");//"Off"
-                    cams[i].setEnumValue("TriggerActivation", "RisingEdge");
                 }
+                else{ // if use hardware control
+                    cams[i].setEnumValue("TriggerMode", "On");
+                    cams[i].setEnumValue("TriggerSource", "Line0");
+                }
+            
             }
         }
 
@@ -752,7 +771,7 @@ void acquisition::Capture::run_soft_trig() {
 
     int count = 0;
     
-    cams[MASTER_CAM_].trigger();
+    //cams[MASTER_CAM_].trigger();
     get_mat_images();
     if (SAVE_) {
         count++;
@@ -793,7 +812,7 @@ void acquisition::Capture::run_soft_trig() {
                     if (CAM_>0)
                         CAM_--;
                 } else if( (key & 255)==84 && MANUAL_TRIGGER_) { // t
-                    cams[MASTER_CAM_].trigger();
+                    //cams[MASTER_CAM_].trigger();
                     get_mat_images();
                 } else if( (key & 255)==32 && !SAVE_) { // SPACE
                     ROS_INFO_STREAM("Saving frame...");
@@ -819,7 +838,7 @@ void acquisition::Capture::run_soft_trig() {
             
             // Call update functions
             if (!MANUAL_TRIGGER_) {
-                cams[MASTER_CAM_].trigger();
+                //cams[MASTER_CAM_].trigger();
                 get_mat_images();
             }
 
@@ -981,10 +1000,12 @@ void acquisition::Capture::acquire_images_to_queue(vector<queue<ImagePtr>>*  img
                 timeStamp =  convertedImage->GetTimeStamp() * 1000;
                 // Create a unique filename
                 ostringstream filename;
-                //filename << cam_ids_[i].c_str()<< "-" << imageCnt << ext_;
+                filename << cam_ids_[i].c_str()<< "-" << imageCnt << ext_;
+                /*
                 filename << cam_names_[i]<<"_"<<cam_ids_[i].c_str()
                          << "_"<<todays_date_ << "_"<< std::setfill('0') 
                          << std::setw(6) << imageCnt<<"_"<<timeStamp << ext_;
+                         */
                 imageNames.push_back(filename.str());
 
                 queue_mutex_.lock();

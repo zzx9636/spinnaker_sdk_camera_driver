@@ -66,6 +66,7 @@ namespace acquisition {
         vector<acquisition::Camera> cams;
         vector<string> cam_ids_;
         vector<string> cam_names_;
+        vector<string> cam_types_;
         string master_cam_id_;
         unsigned int numCameras_;
         vector<CameraPtr> pCams_;

@@ -34,7 +34,7 @@ public:
         int getMaxImages();
        
 private:
-        static const unsigned int mk_numImages = 10;
+        static const unsigned int mk_numImages = 10000000;
         unsigned int m_imageCnt;
         string m_deviceSerialNumber;
 };

@@ -311,3 +311,9 @@ void acquisition::Camera::exposureTest() {
     ROS_DEBUG_STREAM("Exposure Time: "<<expTime<<endl);
 
 }
+
+/*
+void acquisition::Camera::RegisterEvent(ImageEventHandler imageEventHandler_ptr){
+    pCam->RegisterEvent(imageEventHandler);
+}
+*/

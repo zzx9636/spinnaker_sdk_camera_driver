@@ -472,7 +472,7 @@ void acquisition::Capture::read_parameters() {
 void acquisition::Capture::init_array() {
     
     ROS_INFO_STREAM("*** FLUSH SEQUENCE ***");
-
+    /*
     init_cameras(true);
 
     start_acquisition();
@@ -483,7 +483,8 @@ void acquisition::Capture::init_array() {
 
     deinit_cameras();
     sleep(init_delay_*2.0);
-
+    */
+   
     init_cameras(false);
 
     ROS_DEBUG_STREAM("Flush sequence done.");
@@ -499,13 +500,6 @@ void acquisition::Capture::init_cameras(bool soft = false) {
         try {         
             cams[i].init();
             if (!soft) {
-                
-                // setting for blackfly S only
-                //cams[i].setIntValue("BinningHorizontal", binning_);
-                //cams[i].setIntValue("BinningVertical", binning_);
-                // cams[i].setIntValue("DecimationHorizontal", decimation_);
-                // cams[i].setIntValue("DecimationVertical", decimation_);
-                // cams[i].setFloatValue("AcquisitionFrameRate", 5.0);
                 
                 // set exposure mode
                 cams[i].setEnumValue("ExposureMode", "Timed");
@@ -523,39 +517,12 @@ void acquisition::Capture::init_cameras(bool soft = false) {
                     else
                         cams[i].setEnumValue("PixelFormat", "Mono8");
                 cams[i].setEnumValue("AcquisitionMode", "Continuous");
-                                
-                if(SOFT_FRAME_RATE_CTRL_){
-                    if (cams[i].is_master()) { 
-                        // set only master to be software triggered
-                        if (MAX_RATE_SAVE_){
-                        cams[i].setEnumValue("LineSelector", "Line2");
-                        cams[i].setEnumValue("LineMode", "Output");
-                        cams[i].setBoolValue("AcquisitionFrameRateEnable", false);
-                        ROS_DEBUG_STREAM("set camera "<<i<<" to master");
-                        cams[i].setFloatValue("AcquisitionFrameRate", 170);
-                        }else{
-                        cams[i].setEnumValue("TriggerMode", "On");
-                        cams[i].setEnumValue("LineSelector", "Line2");
-                        cams[i].setEnumValue("LineMode", "Output");
-                        cams[i].setEnumValue("TriggerSource", "Software");
-                        }
-                        //cams[i].setEnumValue("LineSource", "ExposureActive");
-                    } else {
-                        cams[i].setEnumValue("TriggerMode", "On");
-                        cams[i].setEnumValue("LineSelector", "Line3");
-                        cams[i].setEnumValue("TriggerSource", "Line3");
-                        cams[i].setEnumValue("TriggerSelector", "FrameStart");
-                        cams[i].setEnumValue("LineMode", "Input");                
-                        //cams[i].setFloatValue("TriggerDelay", 40.0);
-                        cams[i].setEnumValue("TriggerOverlap", "ReadOut");//"Off"
-                        cams[i].setEnumValue("TriggerActivation", "RisingEdge");
-                    }
-                }
-                else{ // if use hardware control
-                    cams[i].setEnumValue("TriggerMode", "On");
-                    cams[i].setEnumValue("TriggerSource", "Line0");
-                }
-            
+                cams[i].setEnumValue("TriggerMode", "On");
+                cams[i].setEnumValue("TriggerSource", "Line0");
+                
+                ImageEventHandler* ImageEventHandler;
+                ConfigureImageEvents(camList_.GetByIndex(i), ImageEventHandler);
+                handler_ptr_vec_.push_back(ImageEventHandler);
             }
         }
 
@@ -596,6 +563,7 @@ void acquisition::Capture::deinit_cameras() {
     
     for (int i = numCameras_-1 ; i >=0 ; i--) {
 
+        ResetImageEvents(camList_.GetByIndex(i), handler_ptr_vec_[i]);
         ROS_DEBUG_STREAM("Camera "<<i<<": Deinit...");
         cams[i].deinit();
         // pCam = NULL;
@@ -938,7 +906,7 @@ void acquisition::Capture::write_queue_to_disk(queue<ImagePtr>* img_q, int cam_n
     int k_numImages = nframes_;
 
     while (imageCnt < k_numImages){
-//     ROS_DEBUG_STREAM("  Write Queue to Disk for cam: "<< cam_no <<" size = "<<img_q->size());
+        //ROS_DEBUG_STREAM("  Write Queue to Disk for cam: "<< cam_no <<" size = "<<img_q->size());
 
         if(img_q->empty()){
             boost::this_thread::sleep(boost::posix_time::milliseconds(5));
@@ -959,7 +927,7 @@ void acquisition::Capture::write_queue_to_disk(queue<ImagePtr>* img_q, int cam_n
                 <<"_"<<id<<"_"<<todays_date_ << "_"<<std::setfill('0')
                 << std::setw(6) << imageCnt<<"_"<<timeStamp << ext_; 
             
-//     ROS_DEBUG_STREAM("Writing to "<<filename.str().c_str());
+    //ROS_DEBUG_STREAM("Writing to "<<filename.str().c_str());
 
         convertedImage->Save(filename.str().c_str());
      
@@ -1064,10 +1032,16 @@ void acquisition::Capture::run_mt() {
 }
 
 void acquisition::Capture::run() {
+    /*
     if(!MAX_RATE_SAVE_)
         run_soft_trig();
     else
         run_mt();
+    */
+   ROS_INFO("*** ACQUISITION ***"); 
+   start_acquisition();
+   handler_wait4image(handler_ptr_vec_[0]);
+
 }
 
 std::string acquisition::Capture::todays_date()
@@ -1079,40 +1053,81 @@ std::string acquisition::Capture::todays_date()
     return td;
 }
 
-int acquisition::Capture::ConfigureImageEvents(CameraPtr pCam, ImageEventHandler*& imageEventHandler)
+void acquisition::Capture::ConfigureImageEvents(CameraPtr pCam, ImageEventHandler*& imageEventHandler)
 {
-        int result = 0;
-        try
+    try
+    {
+        //
+        // Create image event
+        //
+        // *** NOTES ***
+        // The class has been constructed to accept a camera pointer in order
+        // to allow the saving of images with the device serial number.
+        //
+        imageEventHandler = new ImageEventHandler(pCam);
+        
+        // 
+        // Register image event handler
+        //
+        // *** NOTES ***
+        // Image events are registered to cameras. If there are multiple 
+        // cameras, each camera must have the image events registered to it
+        // separately. Also, multiple image events may be registered to a
+        // single camera.
+        //
+        // *** LATER ***
+        // Image events must be unregistered manually. This must be done prior
+        // to releasing the system and while the image events are still in
+        // scope.
+        //
+        pCam->RegisterEvent(*imageEventHandler);
+    }
+    catch (Spinnaker::Exception &e)
+    {
+        ROS_FATAL_STREAM("Error: " << e.what());
+        ros::shutdown();
+    }
+}
+
+void acquisition::Capture::handler_wait4image(ImageEventHandler*& imageEventHandler)
+{
+    try
+    {
+        const int sleepDuration = 200; // in milliseconds
+        
+        while (imageEventHandler->getImageCount() < imageEventHandler->getMaxImages())
         {
-                //
-                // Create image event
-                //
-                // *** NOTES ***
-                // The class has been constructed to accept a camera pointer in order
-                // to allow the saving of images with the device serial number.
-                //
-                imageEventHandler = new ImageEventHandler(pCam);
-                
-                // 
-                // Register image event handler
-                //
-                // *** NOTES ***
-                // Image events are registered to cameras. If there are multiple 
-                // cameras, each camera must have the image events registered to it
-                // separately. Also, multiple image events may be registered to a
-                // single camera.
-                //
-                // *** LATER ***
-                // Image events must be unregistered manually. This must be done prior
-                // to releasing the system and while the image events are still in
-                // scope.
-                //
-                pCam->RegisterEvent(*imageEventHandler);
+            ROS_INFO_STREAM("Grabbing images "<<imageEventHandler->getImageCount());
+            usleep(sleepDuration);
         }
-        catch (Spinnaker::Exception &e)
-        {
-                cout << "Error: " << e.what() << endl;
-                result = -1;
-        }
-        return result;
+    }
+    catch (Spinnaker::Exception &e)
+    {
+        ROS_FATAL_STREAM("Error: " << e.what());
+        ros::shutdown();
+    }
+}
+
+void acquisition::Capture::ResetImageEvents(CameraPtr pCam, ImageEventHandler*& imageEventHandler)
+{
+    try
+    {
+        //
+        // Unregister image event handler
+        //
+        // *** NOTES ***
+        // It is important to unregister all image events from all cameras
+        // they are registered to.
+        //
+        pCam->UnregisterEvent(*imageEventHandler);
+        // Delete image event (because it is a pointer)
+        delete imageEventHandler;
+        
+        ROS_INFO_STREAM("Image events unregistered...");
+    }
+    catch (Spinnaker::Exception &e)
+    {
+        ROS_FATAL_STREAM("Error: " << e.what());
+        ros::shutdown();
+    }
 }

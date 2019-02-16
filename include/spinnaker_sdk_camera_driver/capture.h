@@ -10,7 +10,7 @@
 
 #include "std_msgs/String.h"
 #include "spinnaker_sdk_camera_driver/SpinnakerImageNames.h"
-
+#include "spinnaker_sdk_camera_driver/ImageEventHandler.h"
 #include <sstream>
 
 using namespace Spinnaker;
@@ -62,7 +62,10 @@ namespace acquisition {
         float mem_usage();
 
         
-        int acquisition::Capture::ConfigureImageEvents(CameraPtr pCam, ImageEventHandler*& imageEventHandler);
+        void ConfigureImageEvents(CameraPtr pCam, ImageEventHandler*& imageEventHandler);
+        void handler_wait4image(ImageEventHandler*& imageEventHandler);
+
+        void ResetImageEvents(CameraPtr pCam, ImageEventHandler*& imageEventHandler);
     
         SystemPtr system_;    
         CameraList camList_;
@@ -82,6 +85,7 @@ namespace acquisition {
         vector<vector<double>> rect_coeff_vec_;
         vector<vector<double>> proj_coeff_vec_;
         vector<string> imageNames;
+        vector<ImageEventHandler*> handler_ptr_vec_;
            
         string path_;
         string todays_date_;
@@ -114,7 +118,7 @@ namespace acquisition {
         bool LIVE_;
         bool CAM_DIRS_CREATED_;
         bool GRID_VIEW_;
-//        bool MEM_SAVE_;
+        //bool MEM_SAVE_;
         bool SOFT_FRAME_RATE_CTRL_;
         bool EXPORT_TO_ROS_;
         bool MAX_RATE_SAVE_;

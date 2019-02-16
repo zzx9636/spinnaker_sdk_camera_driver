@@ -51,7 +51,7 @@ namespace acquisition {
     private:
 
         void set_frame_rate(CameraPtr, float);
-    
+        
         void create_cam_directories();
         void save_mat_frames(int);
         void save_binary_frames(int);
@@ -60,6 +60,9 @@ namespace acquisition {
         void export_to_ROS();
 
         float mem_usage();
+
+        
+        int acquisition::Capture::ConfigureImageEvents(CameraPtr pCam, ImageEventHandler*& imageEventHandler);
     
         SystemPtr system_;    
         CameraList camList_;

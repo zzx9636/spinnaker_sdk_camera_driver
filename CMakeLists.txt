@@ -73,6 +73,7 @@ set (LIBS ${LibUnwind_LIBRARIES} Spinnaker ${OpenCV_LIBS} ${Boost_GENERAL})
 add_library (acquilib SHARED
   src/capture.cpp
   src/camera.cpp
+  src/ImageEventHandler.cpp
 )
 
 add_dependencies(acquilib ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

@@ -1078,3 +1078,41 @@ std::string acquisition::Capture::todays_date()
     std::string td(out);
     return td;
 }
+
+int acquisition::Capture::ConfigureImageEvents(CameraPtr pCam, ImageEventHandler*& imageEventHandler)
+{
+        int result = 0;
+        try
+        {
+                //
+                // Create image event
+                //
+                // *** NOTES ***
+                // The class has been constructed to accept a camera pointer in order
+                // to allow the saving of images with the device serial number.
+                //
+                imageEventHandler = new ImageEventHandler(pCam);
+                
+                // 
+                // Register image event handler
+                //
+                // *** NOTES ***
+                // Image events are registered to cameras. If there are multiple 
+                // cameras, each camera must have the image events registered to it
+                // separately. Also, multiple image events may be registered to a
+                // single camera.
+                //
+                // *** LATER ***
+                // Image events must be unregistered manually. This must be done prior
+                // to releasing the system and while the image events are still in
+                // scope.
+                //
+                pCam->RegisterEvent(*imageEventHandler);
+        }
+        catch (Spinnaker::Exception &e)
+        {
+                cout << "Error: " << e.what() << endl;
+                result = -1;
+        }
+        return result;
+}

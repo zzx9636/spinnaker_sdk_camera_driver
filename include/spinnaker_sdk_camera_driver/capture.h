@@ -12,6 +12,9 @@
 #include "spinnaker_sdk_camera_driver/SpinnakerImageNames.h"
 #include "spinnaker_sdk_camera_driver/ImageEventHandler.h"
 #include <sstream>
+#include <tbb/concurrent_queue.h>
+#include <memory>
+
 
 using namespace Spinnaker;
 using namespace Spinnaker::GenApi;
@@ -37,8 +40,8 @@ namespace acquisition {
         void deinit_cameras();
         void acquire_mat_images(int);
         void run();
-        void run_soft_trig();
-        void run_mt();
+        //void run_soft_trig();
+        //void run_mt();
         void publish_to_ros(int, char**, float);
 
         void read_parameters();
@@ -86,6 +89,7 @@ namespace acquisition {
         vector<vector<double>> proj_coeff_vec_;
         vector<string> imageNames;
         vector<ImageEventHandler*> handler_ptr_vec_;
+        vector<shared_ptr<tbb::concurrent_queue<ImagePtr>>> ImgPtr_queue_vec_;
            
         string path_;
         string todays_date_;
@@ -119,9 +123,9 @@ namespace acquisition {
         bool CAM_DIRS_CREATED_;
         bool GRID_VIEW_;
         //bool MEM_SAVE_;
-        bool SOFT_FRAME_RATE_CTRL_;
+        //bool SOFT_FRAME_RATE_CTRL_;
         bool EXPORT_TO_ROS_;
-        bool MAX_RATE_SAVE_;
+        //bool MAX_RATE_SAVE_;
         bool PUBLISH_CAM_INFO_;
 
         // grid view related variables

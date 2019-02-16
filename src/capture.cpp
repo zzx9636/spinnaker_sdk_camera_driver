@@ -25,14 +25,6 @@ acquisition::Capture::~Capture(){
     system_->ReleaseInstance();
     
     ros::shutdown();
-
-}
-
-void handler(int i) {
-
-    // Capture* obj = reinterpret_cast<Capture*>(object);
-    ROS_FATAL("HERE!!!");
-    
 }
 
 acquisition::Capture::Capture():nh_(),nh_pvt_ ("~") {
@@ -64,7 +56,7 @@ acquisition::Capture::Capture():nh_(),nh_pvt_ ("~") {
     exposure_time_ = 0 ; // default as 0 = auto exposure
     soft_framerate_ = 20; //default soft framrate
     ext_ = ".bmp";
-    SOFT_FRAME_RATE_CTRL_ = false;
+    //SOFT_FRAME_RATE_CTRL_ = false;
     LIVE_ = false;
     TIME_BENCHMARK_ = false;
     MASTER_TIMESTAMP_FOR_ALL_ = true;    
@@ -74,7 +66,7 @@ acquisition::Capture::Capture():nh_(),nh_pvt_ ("~") {
     SAVE_BIN_ = false;
     nframes_ = -1;
     FIXED_NUM_FRAMES_ = false;
-    MAX_RATE_SAVE_ = false;
+    //MAX_RATE_SAVE_ = false;
     skip_num_ = 20; 
     init_delay_ = 1; 
     master_fps_ = 20.0;
@@ -307,10 +299,6 @@ void acquisition::Capture::read_parameters() {
         ROS_INFO("  Showing grid-style live images setting: %s",GRID_VIEW_?"true":"false");
     } else ROS_WARN("  'live_grid' Parameter not set, using default behavior live_grid=%s",GRID_VIEW_?"true":"false");
 
-    if (nh_pvt_.getParam("max_rate_save", MAX_RATE_SAVE_)) 
-        ROS_INFO("  Max Rate Save Mode: %s",MAX_RATE_SAVE_?"true":"false");
-        else ROS_WARN("  'max_rate_save' Parameter not set, using default behavior max_rate_save=%s",MAX_RATE_SAVE_?"true":"false");
-
     if (nh_pvt_.getParam("time", TIME_BENCHMARK_)) 
         ROS_INFO("  Displaying timing details: %s",TIME_BENCHMARK_?"true":"false");
         else ROS_WARN("  'time' Parameter not set, using default behavior time=%s",TIME_BENCHMARK_?"true":"false");
@@ -353,18 +341,6 @@ void acquisition::Capture::read_parameters() {
         }
     } else ROS_WARN("  'binning' Parameter not set, using default behavior: Binning = %d",binning_);
 
-    if (nh_pvt_.getParam("soft_framerate", soft_framerate_)){
-        if (soft_framerate_ >0) {
-            SOFT_FRAME_RATE_CTRL_=true;
-            ROS_INFO("  Using Software rate control, rate set to: %d",soft_framerate_);
-        }
-        else{
-            soft_framerate_ = 20;
-            ROS_INFO("  'soft_framerate'=0, software rate control set to off");
-        }
-    }
-    else ROS_WARN("  'soft_framerate' Parameter not set, using default behavior: No Software Rate Control ");
-
     if (nh_pvt_.getParam("save", SAVE_)) 
         ROS_INFO("  Saving images set to: %d",SAVE_);
         else ROS_WARN("  'save' Parameter not set, using default behavior save=%d",SAVE_);
@@ -377,7 +353,7 @@ void acquisition::Capture::read_parameters() {
         }else ROS_WARN("    'save_type' Parameter not set, using default behavior save=%d",SAVE_);
     }
 
-    if (SAVE_||MAX_RATE_SAVE_){
+    if (SAVE_){
         if (nh_pvt_.getParam("frames", nframes_)) {
             if (nframes_>0){
                 FIXED_NUM_FRAMES_ = true;
@@ -727,6 +703,7 @@ void acquisition::Capture::get_mat_images() {
     
 }
 
+/*
 void acquisition::Capture::run_soft_trig() {
     achieved_time_ = ros::Time::now().toSec();
     ROS_INFO("*** ACQUISITION ***");
@@ -856,6 +833,7 @@ void acquisition::Capture::run_soft_trig() {
         ROS_FATAL_STREAM("Some unknown exception occured. \v Exiting gracefully, \n  possible reason could be Camera Disconnection...");
     }
 }
+*/
 
 float acquisition::Capture::mem_usage() {
     std::string token;
@@ -1005,7 +983,7 @@ void acquisition::Capture::acquire_images_to_queue(vector<queue<ImagePtr>>*  img
     }
     return;
 }
-
+/*
 void acquisition::Capture::run_mt() {
     ROS_INFO("*** ACQUISITION MULTI-THREADED***");
     
@@ -1030,7 +1008,7 @@ void acquisition::Capture::run_mt() {
     threads.join_all();
     ROS_DEBUG("All Threads Joined");
 }
-
+*/
 void acquisition::Capture::run() {
     /*
     if(!MAX_RATE_SAVE_)

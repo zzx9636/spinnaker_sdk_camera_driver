@@ -32,6 +32,8 @@ find_package(catkin REQUIRED COMPONENTS
 # Find Packages
 find_package(OpenCV REQUIRED)
 find_package(LibUnwind REQUIRED)
+find_package(Threads REQUIRED)
+
 
 find_package(Boost REQUIRED)
 if(Boost_FOUND)
@@ -64,6 +66,7 @@ include_directories(
   ${OpenCV_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIR}
   ${LibUnwind_INCLUDE_DIRS}
+  ${TBB_INCLUDE}
 )
 
 link_directories( ${SPINNAKER_LIB_DIR} )
@@ -77,11 +80,17 @@ add_library (acquilib SHARED
 )
 
 add_dependencies(acquilib ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(acquilib ${LIBS} ${catkin_LIBRARIES})
+target_link_libraries(acquilib ${LIBS} ${catkin_LIBRARIES}
+${TBB_LIBRARY_RELEASE}
+${CMAKE_THREAD_LIBS_INIT}
+-ltbb)
 
 add_executable (acquisition_node src/acquisition_node.cpp)
 add_dependencies(acquisition_node acquilib ${catkin_EXPORTED_TARGETS})
-target_link_libraries (acquisition_node acquilib ${LIBS} ${catkin_LIBRARIES})
+target_link_libraries (acquisition_node acquilib ${LIBS} ${catkin_LIBRARIES}
+${TBB_LIBRARY_RELEASE}
+${CMAKE_THREAD_LIBS_INIT}
+-ltbb)
 
 install(TARGETS acquilib acquisition_node
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

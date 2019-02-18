@@ -65,7 +65,7 @@ namespace acquisition {
         float mem_usage();
 
         
-        void ConfigureImageEvents(CameraPtr pCam, ImageEventHandler*& imageEventHandler);
+        void ConfigureImageEvents(CameraPtr pCam);
         void handler_wait4image(ImageEventHandler*& imageEventHandler);
 
         void ResetImageEvents(CameraPtr pCam, ImageEventHandler*& imageEventHandler);
@@ -89,7 +89,7 @@ namespace acquisition {
         vector<vector<double>> proj_coeff_vec_;
         vector<string> imageNames;
         vector<ImageEventHandler*> handler_ptr_vec_;
-        vector<shared_ptr<tbb::concurrent_queue<ImagePtr>>> ImgPtr_queue_vec_;
+        vector<shared_ptr<tbb::concurrent_queue<Mat>>> Img_queue_vec_;
            
         string path_;
         string todays_date_;

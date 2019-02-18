@@ -1,6 +1,6 @@
 #include "spinnaker_sdk_camera_driver/ImageEventHandler.h"
 
-ImageEventHandler::ImageEventHandler(CameraPtr pCam) 
+ImageEventHandler::ImageEventHandler(CameraPtr pCam, bool if_color, shared_ptr<tbb::concurrent_queue<Mat>> queue_ptr) 
 { 
     // Retrieve device serial number
     INodeMap & nodeMap = pCam->GetTLDeviceNodeMap();
@@ -14,6 +14,8 @@ ImageEventHandler::ImageEventHandler(CameraPtr pCam)
     m_imageCnt = 0;
     // Release reference to camera
     pCam = NULL;
+    this->color_ = if_color;
+    Img_queue = queue_ptr;
 }
 ImageEventHandler::~ImageEventHandler() {}
 
@@ -37,7 +39,11 @@ void ImageEventHandler::OnImageEvent(ImagePtr image)
             // Print image information
             ROS_DEBUG_STREAM("Grabbed image " << m_imageCnt << ", width = " << image->GetWidth() << ", height = " << image->GetHeight());
             // Convert image to mono 8
-            ImagePtr convertedImage = image->Convert(PixelFormat_Mono8, HQ_LINEAR);
+            ImagePtr convertedImage;
+            if (color_)
+                convertedImage = image->Convert(PixelFormat_BGR8, HQ_LINEAR); //, NEAREST_NEIGHBOR);
+            else
+                convertedImage = image->Convert(PixelFormat_Mono8, HQ_LINEAR); //, NEAREST_NEIGHBOR);
             // Increment image counter
             m_imageCnt++;
         }
@@ -52,4 +58,22 @@ int ImageEventHandler::getImageCount()
 int ImageEventHandler::getMaxImages()
 {
         return mk_numImages;
+}
+
+
+void ImageEventHandler::save2queue(ImagePtr convertedImage)
+{	
+    unsigned int XPadding = convertedImage->GetXPadding();
+    unsigned int YPadding = convertedImage->GetYPadding();
+    unsigned int rowsize = convertedImage->GetWidth();
+    unsigned int colsize = convertedImage->GetHeight();
+
+    //image data contains padding. When allocating Mat container size, you need to account for the X,Y image data padding.
+    Mat img;
+    if (color_)
+        img = Mat(colsize + YPadding, rowsize + XPadding, CV_8UC3, convertedImage->GetData(), convertedImage->GetStride());
+    else
+        img = Mat(colsize + YPadding, rowsize + XPadding, CV_8UC1, convertedImage->GetData(), convertedImage->GetStride());
+    Img_queue->push(img.clone());
+    
 }

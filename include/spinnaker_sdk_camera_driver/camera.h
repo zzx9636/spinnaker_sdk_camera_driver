@@ -1,6 +1,7 @@
 #ifndef CAMERA_HEADER
 #define CAMERA_HEADER
 
+
 #include "std_include.h"
 #include "serialization.h"
 #include <boost/archive/binary_oarchive.hpp>

@@ -9,12 +9,14 @@
 #include <string.h>
 #include <tbb/concurrent_queue.h>
 #include <memory>
+#include "camera.h"
 
 
 using namespace Spinnaker;
 using namespace Spinnaker::GenApi;
 using namespace Spinnaker::GenICam;
 using namespace std;
+using namespace cv;
 
 class ImageEventHandler : public ImageEvent
 {
@@ -22,7 +24,7 @@ class ImageEventHandler : public ImageEvent
                 
                 // The constructor retrieves the serial number and initializes the image 
                 // counter to 0.
-                ImageEventHandler(CameraPtr pCam); 
+                ImageEventHandler(CameraPtr pCam, bool if_color, shared_ptr<tbb::concurrent_queue<Mat>> queue_ptr); 
         
                 ~ImageEventHandler();
                 // This method defines an image event. In it, the image that triggered the 
@@ -38,10 +40,12 @@ class ImageEventHandler : public ImageEvent
                 int getMaxImages();
         
         private:
+                void save2queue(ImagePtr convertedImage);
                 static const unsigned int mk_numImages = 10000000;
                 unsigned int m_imageCnt;
                 string m_deviceSerialNumber;
-                shared_ptr<tbb::concurrent_queue<ImagePtr>> ImgPtr_queue;
+                shared_ptr<tbb::concurrent_queue<Mat>> Img_queue;
+                bool color_;
 };
 
 #endif

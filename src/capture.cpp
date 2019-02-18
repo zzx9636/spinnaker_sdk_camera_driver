@@ -496,9 +496,8 @@ void acquisition::Capture::init_cameras(bool soft = false) {
                 cams[i].setEnumValue("TriggerMode", "On");
                 cams[i].setEnumValue("TriggerSource", "Line0");
                 
-                ImageEventHandler* ImageEventHandler;
-                ConfigureImageEvents(camList_.GetByIndex(i), ImageEventHandler);
-                handler_ptr_vec_.push_back(ImageEventHandler);
+                ConfigureImageEvents(camList_.GetByIndex(i));
+                
             }
         }
 
@@ -511,7 +510,7 @@ void acquisition::Capture::init_cameras(bool soft = false) {
         }
 
     }
-    ROS_DEBUG_STREAM("All cameras initialized.");
+    ROS_INFO_STREAM("All cameras initialized.");
 }
 
 void acquisition::Capture::start_acquisition() {
@@ -1010,12 +1009,7 @@ void acquisition::Capture::run_mt() {
 }
 */
 void acquisition::Capture::run() {
-    /*
-    if(!MAX_RATE_SAVE_)
-        run_soft_trig();
-    else
-        run_mt();
-    */
+
    ROS_INFO("*** ACQUISITION ***"); 
    start_acquisition();
    handler_wait4image(handler_ptr_vec_[0]);
@@ -1031,34 +1025,17 @@ std::string acquisition::Capture::todays_date()
     return td;
 }
 
-void acquisition::Capture::ConfigureImageEvents(CameraPtr pCam, ImageEventHandler*& imageEventHandler)
+void acquisition::Capture::ConfigureImageEvents(CameraPtr pCam)
 {
     try
     {
-        //
         // Create image event
-        //
-        // *** NOTES ***
-        // The class has been constructed to accept a camera pointer in order
-        // to allow the saving of images with the device serial number.
-        //
-        imageEventHandler = new ImageEventHandler(pCam);
-        
-        // 
+        shared_ptr<tbb::concurrent_queue<Mat>> queue_ptr(new tbb::concurrent_queue<Mat>);
+        ImageEventHandler* imageEventHandler = new ImageEventHandler(pCam, color_, queue_ptr);
         // Register image event handler
-        //
-        // *** NOTES ***
-        // Image events are registered to cameras. If there are multiple 
-        // cameras, each camera must have the image events registered to it
-        // separately. Also, multiple image events may be registered to a
-        // single camera.
-        //
-        // *** LATER ***
-        // Image events must be unregistered manually. This must be done prior
-        // to releasing the system and while the image events are still in
-        // scope.
-        //
         pCam->RegisterEvent(*imageEventHandler);
+        Img_queue_vec_.push_back(queue_ptr);
+        handler_ptr_vec_.push_back(imageEventHandler);
     }
     catch (Spinnaker::Exception &e)
     {
@@ -1072,7 +1049,6 @@ void acquisition::Capture::handler_wait4image(ImageEventHandler*& imageEventHand
     try
     {
         const int sleepDuration = 200; // in milliseconds
-        
         while (imageEventHandler->getImageCount() < imageEventHandler->getMaxImages())
         {
             ROS_INFO_STREAM("Grabbing images "<<imageEventHandler->getImageCount());

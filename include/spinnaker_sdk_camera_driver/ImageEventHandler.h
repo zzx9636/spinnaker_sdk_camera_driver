@@ -38,6 +38,8 @@ class ImageEventHandler : public ImageEvent
         
                 // Getter for maximum images
                 int getMaxImages();
+
+                Mat GetCurrentFrame();
         
         private:
                 void save2queue(ImagePtr convertedImage);
@@ -46,6 +48,7 @@ class ImageEventHandler : public ImageEvent
                 string m_deviceSerialNumber;
                 shared_ptr<tbb::concurrent_queue<Mat>> Img_queue;
                 bool color_;
+                Mat CurrentFrame;
 };
 
 #endif

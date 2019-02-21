@@ -14,6 +14,7 @@
 #include <sstream>
 #include <tbb/concurrent_queue.h>
 #include <memory>
+#include <thread>
 
 
 using namespace Spinnaker;
@@ -38,36 +39,23 @@ namespace acquisition {
         void start_acquisition();
         void end_acquisition();
         void deinit_cameras();
-        void acquire_mat_images(int);
         void run();
-        //void run_soft_trig();
-        //void run_mt();
-        void publish_to_ros(int, char**, float);
-
         void read_parameters();
         std::string todays_date();
-
-        
-        void write_queue_to_disk(queue<ImagePtr>*, int);
-        void acquire_images_to_queue(vector<queue<ImagePtr>>*);
     
     private:
 
         void set_frame_rate(CameraPtr, float);
-        
         void create_cam_directories();
-        void save_mat_frames(int);
-        void save_binary_frames(int);
-        void get_mat_images();
-        void update_grid();
-        void export_to_ROS();
+        void saving_thread();
+        void save_frames();
 
+        void ROS_pub_thread();
+        void export_to_ROS();
         float mem_usage();
 
-        
         void ConfigureImageEvents(CameraPtr pCam);
         void handler_wait4image(ImageEventHandler*& imageEventHandler);
-
         void ResetImageEvents(CameraPtr pCam, ImageEventHandler*& imageEventHandler);
     
         SystemPtr system_;    
@@ -117,15 +105,9 @@ namespace acquisition {
         bool TIME_BENCHMARK_;
         bool MASTER_TIMESTAMP_FOR_ALL_;
         bool SAVE_;
-        bool SAVE_BIN_;
-        bool MANUAL_TRIGGER_;
-        bool LIVE_;
         bool CAM_DIRS_CREATED_;
         bool GRID_VIEW_;
-        //bool MEM_SAVE_;
-        //bool SOFT_FRAME_RATE_CTRL_;
         bool EXPORT_TO_ROS_;
-        //bool MAX_RATE_SAVE_;
         bool PUBLISH_CAM_INFO_;
 
         // grid view related variables

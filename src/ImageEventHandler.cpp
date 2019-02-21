@@ -60,6 +60,10 @@ int ImageEventHandler::getMaxImages()
         return mk_numImages;
 }
 
+Mat ImageEventHandler::GetCurrentFrame()
+{
+    return CurrentFrame.clone();
+}
 
 void ImageEventHandler::save2queue(ImagePtr convertedImage)
 {	
@@ -74,6 +78,7 @@ void ImageEventHandler::save2queue(ImagePtr convertedImage)
         img = Mat(colsize + YPadding, rowsize + XPadding, CV_8UC3, convertedImage->GetData(), convertedImage->GetStride());
     else
         img = Mat(colsize + YPadding, rowsize + XPadding, CV_8UC1, convertedImage->GetData(), convertedImage->GetStride());
+    CurrentFrame = img;
     Img_queue->push(img.clone());
     
 }

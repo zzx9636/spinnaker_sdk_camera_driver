@@ -1,6 +1,8 @@
 #include "spinnaker_sdk_camera_driver/ImageEventHandler.h"
 
-ImageEventHandler::ImageEventHandler(CameraPtr pCam, bool if_color, shared_ptr<tbb::concurrent_queue<Mat>> queue_ptr) 
+ImageEventHandler::ImageEventHandler(CameraPtr pCam, bool if_color, bool to_ros, bool save,
+        const shared_ptr<tbb::concurrent_queue<Mat>>& ros_queue_ptr, 
+        const shared_ptr<tbb::concurrent_queue<Mat>>& save_queue_ptr)
 { 
     // Retrieve device serial number
     INodeMap & nodeMap = pCam->GetTLDeviceNodeMap();
@@ -12,10 +14,12 @@ ImageEventHandler::ImageEventHandler(CameraPtr pCam, bool if_color, shared_ptr<t
     }
     // Initialize image counter to 0
     m_imageCnt = 0;
-    // Release reference to camera
-    pCam = NULL;
-    this->color_ = if_color;
-    Img_queue = queue_ptr;
+    
+    this->COLOR_ = if_color;
+    this->SAVE_ = save;
+    this->TO_ROS_ = to_ros;
+    this->SAVE_queue = save_queue_ptr;
+    this->ROS_queue = ros_queue_ptr;
 }
 ImageEventHandler::~ImageEventHandler() {}
 
@@ -40,12 +44,13 @@ void ImageEventHandler::OnImageEvent(ImagePtr image)
             ROS_DEBUG_STREAM("Grabbed image " << m_imageCnt << ", width = " << image->GetWidth() << ", height = " << image->GetHeight());
             // Convert image to mono 8
             ImagePtr convertedImage;
-            if (color_)
-                convertedImage = image->Convert(PixelFormat_BGR8, HQ_LINEAR); //, NEAREST_NEIGHBOR);
+            if (COLOR_)
+                convertedImage = image->Convert(PixelFormat_BGR8, HQ_LINEAR); 
             else
-                convertedImage = image->Convert(PixelFormat_Mono8, HQ_LINEAR); //, NEAREST_NEIGHBOR);
+                convertedImage = image->Convert(PixelFormat_Mono8, HQ_LINEAR); 
             // Increment image counter
             m_imageCnt++;
+            save2queue(convertedImage);
         }
     }
 }
@@ -54,16 +59,7 @@ int ImageEventHandler::getImageCount()
 {
         return m_imageCnt;
 }
-// Getter for maximum images
-int ImageEventHandler::getMaxImages()
-{
-        return mk_numImages;
-}
 
-Mat ImageEventHandler::GetCurrentFrame()
-{
-    return CurrentFrame.clone();
-}
 
 void ImageEventHandler::save2queue(ImagePtr convertedImage)
 {	
@@ -74,11 +70,14 @@ void ImageEventHandler::save2queue(ImagePtr convertedImage)
 
     //image data contains padding. When allocating Mat container size, you need to account for the X,Y image data padding.
     Mat img;
-    if (color_)
+    if (COLOR_)
         img = Mat(colsize + YPadding, rowsize + XPadding, CV_8UC3, convertedImage->GetData(), convertedImage->GetStride());
     else
         img = Mat(colsize + YPadding, rowsize + XPadding, CV_8UC1, convertedImage->GetData(), convertedImage->GetStride());
-    CurrentFrame = img;
-    Img_queue->push(img.clone());
+    if(SAVE_)
+        SAVE_queue->push(img.clone());
+    if(TO_ROS_ )//&& (m_imageCnt%2)==0 )
+        ROS_queue->push(img.clone());
+
     
 }

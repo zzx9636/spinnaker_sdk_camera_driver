@@ -500,11 +500,7 @@ void acquisition::Capture::init_cameras(bool soft = false) {
 void acquisition::Capture::start_acquisition() {
 
     for (int i = numCameras_-1; i>=0; i--)
-        cams[i].begin_acquisition();
-
-    // for (int i=0; i<numCameras_; i++)
-    //     cams[i].begin_acquisition();
-    
+        cams[i].begin_acquisition();    
 }
 
 void acquisition::Capture::end_acquisition() {
@@ -557,10 +553,15 @@ void acquisition::Capture::saving_thread()
 
 void acquisition::Capture::ROS_pub_thread()
 {
+    ROS_INFO_STREAM("***** Publish ROS Node ************");
+    for(int i=0; i<numCameras_; i++)
+    {
+        ROS_queue_vec_[i]->clear();
+    }
     while(true)
     {
         export_to_ROS();
-        usleep(10000);
+        //usleep(10000);
     }
 }
 
@@ -571,7 +572,7 @@ void acquisition::Capture::save_frames()
     try{
         for (unsigned int i = 0; i < numCameras_; i++) {
             // TRY to pop from the top of the queue
-            if(Img_queue_vec_[i]->try_pop(frames_[i])){
+            if(Save_queue_vec_[i]->try_pop(frames_[i])){
                 /*    
                 if (MASTER_TIMESTAMP_FOR_ALL_)
                     timestamp = time_stamps_[MASTER_CAM_];
@@ -600,22 +601,25 @@ void acquisition::Capture::save_frames()
 void acquisition::Capture::export_to_ROS() {
     double t = ros::Time::now().toSec();
     std_msgs::Header img_msg_header;
-    img_msg_header.stamp = mesg.header.stamp;
+    img_msg_header.stamp = ros::Time::now();
+    Mat top_frame;
     try{
         for(int i=0; i<numCameras_; i++){
-            img_msg_header.frame_id = "cam_"+to_string(i)+"_optical_frame";
+            if(ROS_queue_vec_[i]->try_pop(top_frame)){
+                img_msg_header.frame_id = "cam_"+to_string(i)+"_optical_frame";
+                if(color_)
+                    img_msgs[i]=cv_bridge::CvImage(img_msg_header, "bgr8", top_frame ).toImageMsg();
+                else
+                    img_msgs[i]=cv_bridge::CvImage(img_msg_header, "mono8", top_frame).toImageMsg();
+                camera_image_pubs[i].publish(img_msgs[i]);
 
-            if(color_)
-                img_msgs[i]=cv_bridge::CvImage(img_msg_header, "bgr8", handler_ptr_vec_[i]->GetCurrentFrame()).toImageMsg();
-            else
-                img_msgs[i]=cv_bridge::CvImage(img_msg_header, "mono8", handler_ptr_vec_[i]->GetCurrentFrame()).toImageMsg();
-            camera_image_pubs[i].publish(img_msgs[i]);
-
-            if (PUBLISH_CAM_INFO_){
-                cam_info_msgs[i].header.stamp = mesg.header.stamp;
-                camera_info_pubs[i].publish(cam_info_msgs[i]);
+                if (PUBLISH_CAM_INFO_){
+                    cam_info_msgs[i].header.stamp = mesg.header.stamp;
+                    camera_info_pubs[i].publish(cam_info_msgs[i]);
+                }
+                export_to_ROS_time_ = ros::Time::now().toSec()-t;
+                ROS_DEBUG_STREAM("Export to ros take "<<export_to_ROS_time_<<" sec.");
             }
-            export_to_ROS_time_ = ros::Time::now().toSec()-t;
         }
     }
     catch (Spinnaker::Exception &e)
@@ -675,11 +679,14 @@ void acquisition::Capture::ConfigureImageEvents(CameraPtr pCam)
     try
     {
         // Create image event
-        shared_ptr<tbb::concurrent_queue<Mat>> queue_ptr(new tbb::concurrent_queue<Mat>);
-        ImageEventHandler* imageEventHandler = new ImageEventHandler(pCam, color_, queue_ptr);
+        shared_ptr<tbb::concurrent_queue<Mat>> save_queue_ptr(new tbb::concurrent_queue<Mat>);
+        shared_ptr<tbb::concurrent_queue<Mat>> ros_queue_ptr(new tbb::concurrent_queue<Mat>);
+        ImageEventHandler* imageEventHandler = new ImageEventHandler(pCam, color_, EXPORT_TO_ROS_ , 
+                            SAVE_, ros_queue_ptr, save_queue_ptr);
         // Register image event handler
         pCam->RegisterEvent(*imageEventHandler);
-        Img_queue_vec_.push_back(queue_ptr);
+        Save_queue_vec_.push_back(save_queue_ptr);
+        ROS_queue_vec_.push_back(ros_queue_ptr);
         handler_ptr_vec_.push_back(imageEventHandler);
     }
     catch (Spinnaker::Exception &e)
@@ -689,23 +696,6 @@ void acquisition::Capture::ConfigureImageEvents(CameraPtr pCam)
     }
 }
 
-void acquisition::Capture::handler_wait4image(ImageEventHandler*& imageEventHandler)
-{
-    try
-    {
-        const int sleepDuration = 200; // in milliseconds
-        while (imageEventHandler->getImageCount() < imageEventHandler->getMaxImages())
-        {
-            ROS_INFO_STREAM("Grabbing images "<<imageEventHandler->getImageCount());
-            usleep(sleepDuration);
-        }
-    }
-    catch (Spinnaker::Exception &e)
-    {
-        ROS_FATAL_STREAM("Error: " << e.what());
-        ros::shutdown();
-    }
-}
 
 void acquisition::Capture::ResetImageEvents(CameraPtr pCam, ImageEventHandler*& imageEventHandler)
 {

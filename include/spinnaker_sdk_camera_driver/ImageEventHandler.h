@@ -10,6 +10,7 @@
 #include <tbb/concurrent_queue.h>
 #include <memory>
 #include "camera.h"
+#include <mutex>
 
 
 using namespace Spinnaker;
@@ -24,8 +25,9 @@ class ImageEventHandler : public ImageEvent
                 
                 // The constructor retrieves the serial number and initializes the image 
                 // counter to 0.
-                ImageEventHandler(CameraPtr pCam, bool if_color, shared_ptr<tbb::concurrent_queue<Mat>> queue_ptr); 
-        
+                ImageEventHandler(CameraPtr pCam, bool if_color, bool to_ros , bool save,
+                        const shared_ptr<tbb::concurrent_queue<Mat>>& ros_queue_ptr, 
+                        const shared_ptr<tbb::concurrent_queue<Mat>>& save_queue_ptr);
                 ~ImageEventHandler();
                 // This method defines an image event. In it, the image that triggered the 
                 // event is converted and saved before incrementing the count. Please see 
@@ -36,19 +38,20 @@ class ImageEventHandler : public ImageEvent
                 // Getter for image counter
                 int getImageCount();
         
-                // Getter for maximum images
-                int getMaxImages();
-
-                Mat GetCurrentFrame();
         
         private:
                 void save2queue(ImagePtr convertedImage);
                 static const unsigned int mk_numImages = 10000000;
                 unsigned int m_imageCnt;
                 string m_deviceSerialNumber;
-                shared_ptr<tbb::concurrent_queue<Mat>> Img_queue;
-                bool color_;
-                Mat CurrentFrame;
+                shared_ptr<tbb::concurrent_queue<Mat>> SAVE_queue;
+                shared_ptr<tbb::concurrent_queue<Mat>> ROS_queue;
+                
+                bool COLOR_;
+                bool SAVE_;
+                bool TO_ROS_;
+                
+                
 };
 
 #endif

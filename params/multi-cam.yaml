@@ -1,6 +1,6 @@
 cam_ids:
 - 18585142
-- 17430725
+- 18585632
 # 1 for BFS, and 0 for BF camera
 cam_types:
 - 1

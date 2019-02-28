@@ -18,6 +18,7 @@ using namespace Spinnaker::GenApi;
 using namespace Spinnaker::GenICam;
 using namespace std;
 using namespace cv;
+//using namespace acquisition;
 
 class ImageEventHandler : public ImageEvent
 {
@@ -28,6 +29,9 @@ class ImageEventHandler : public ImageEvent
                 ImageEventHandler(CameraPtr pCam, bool if_color, bool to_ros , bool save,
                         const shared_ptr<tbb::concurrent_queue<Mat>>& ros_queue_ptr, 
                         const shared_ptr<tbb::concurrent_queue<Mat>>& save_queue_ptr);
+
+                ImageEventHandler(acquisition::Camera& cam, bool if_color, bool to_ros , bool save, const shared_ptr<tbb::concurrent_queue<Mat>>& ros_queue_ptr, const shared_ptr<tbb::concurrent_queue<Mat>>& save_queue_ptr);
+
                 ~ImageEventHandler();
                 // This method defines an image event. In it, the image that triggered the 
                 // event is converted and saved before incrementing the count. Please see 

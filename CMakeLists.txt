@@ -77,6 +77,7 @@ add_library (acquilib SHARED
   src/capture.cpp
   src/camera.cpp
   src/ImageEventHandler.cpp
+  src/signalHandler.cpp
 )
 
 add_dependencies(acquilib ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

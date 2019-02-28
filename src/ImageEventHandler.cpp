@@ -21,6 +21,29 @@ ImageEventHandler::ImageEventHandler(CameraPtr pCam, bool if_color, bool to_ros,
     this->SAVE_queue = save_queue_ptr;
     this->ROS_queue = ros_queue_ptr;
 }
+
+ImageEventHandler::ImageEventHandler(acquisition::Camera & cam, bool if_color, bool to_ros, bool save,
+        const shared_ptr<tbb::concurrent_queue<Mat>>& ros_queue_ptr, 
+        const shared_ptr<tbb::concurrent_queue<Mat>>& save_queue_ptr)
+{ 
+    // Retrieve device serial number
+    INodeMap & nodeMap = cam.GetTLDeviceNodeMap();
+    m_deviceSerialNumber = "";
+    CStringPtr ptrDeviceSerialNumber = nodeMap.GetNode("m_deviceSerialNumber");
+    if (IsAvailable(ptrDeviceSerialNumber) && IsReadable(ptrDeviceSerialNumber))
+    {
+            m_deviceSerialNumber = ptrDeviceSerialNumber->GetValue();
+    }
+    // Initialize image counter to 0
+    m_imageCnt = 0;
+    
+    this->COLOR_ = if_color;
+    this->SAVE_ = save;
+    this->TO_ROS_ = to_ros;
+    this->SAVE_queue = save_queue_ptr;
+    this->ROS_queue = ros_queue_ptr;
+}
+
 ImageEventHandler::~ImageEventHandler() {}
 
 // This method defines an image event. In it, the image that triggered the 

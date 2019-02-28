@@ -7,6 +7,7 @@
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/filesystem.hpp>
 #include <string>
+//#include "ImageEventHandler.h"
 
 using namespace Spinnaker;
 using namespace Spinnaker::GenApi;
@@ -48,7 +49,8 @@ namespace acquisition {
         void setBufferSize(int numBuf);
         void adcBitDepth(gcstring bitDep);
         Mat convert_to_mat(ImagePtr);
-        //void RegisterEvent(ImageEventHandler imageEventHandler_ptr);
+        INodeMap & GetTLDeviceNodeMap();
+        void RegisterEvent(Event *imageEventHandler);
         // void set_acquisition_mode_continuous();
         // void set_frame_rate(float);
         // void set_horizontal_binning(int);

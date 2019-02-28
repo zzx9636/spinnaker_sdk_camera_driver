@@ -23,7 +23,8 @@ acquisition::Capture::~Capture(){
     
     ROS_INFO_STREAM("Releasing system instance...");
     system_->ReleaseInstance();
-    
+
+    ROS_INFO_STREAM("Shut Down the ROS...");
     ros::shutdown();
 }
 
@@ -80,15 +81,11 @@ acquisition::Capture::Capture():nh_(),nh_pvt_ ("~") {
     achieved_time_ = 0;
         
     // decimation_ = 1;
-    
     CAM_ = 0;
 
     // default flag values
-
     CAM_DIRS_CREATED_ = false;
-
     GRID_CREATED_ = false;
-
 
     //read_settings(config_file);
     read_parameters();
@@ -430,37 +427,18 @@ void acquisition::Capture::read_parameters() {
 }
 
 void acquisition::Capture::init_array() {
-    
-    ROS_INFO_STREAM("*** FLUSH SEQUENCE ***");
-    /*
-    init_cameras(true);
-
-    start_acquisition();
-    sleep(init_delay_*0.5);
-
-    end_acquisition();
-    sleep(init_delay_*0.5);
-
-    deinit_cameras();
-    sleep(init_delay_*2.0);
-    */
-   
     init_cameras(false);
-
-    ROS_DEBUG_STREAM("Flush sequence done.");
-
 }
 
 void acquisition::Capture::init_cameras(bool soft = false) {
     // when soft, only check is camera pointer can be initialized or not
     ROS_INFO_STREAM("Initializing cameras...");
     // Set cameras 1 to 4 to continuous
-    for (int i = numCameras_-1 ; i >=0 ; i--) {                
+    for (int i = 0 ; i < numCameras_; i++) {                
         ROS_DEBUG_STREAM("Initializing camera " << cam_ids_[i] << "...");
         try {         
             cams[i].init();
             if (!soft) {
-                
                 // set exposure mode
                 cams[i].setEnumValue("ExposureMode", "Timed");
                 if (exposure_time_ > 0) { 
@@ -469,18 +447,36 @@ void acquisition::Capture::init_cameras(bool soft = false) {
                 } else {
                     cams[i].setEnumValue("ExposureAuto", "Continuous");
                 }
-                              
+                ROS_INFO("Set Exposure");
+
                 // set color mode for camera
                 cams[i].set_color(color_);
                 if (color_)
                     cams[i].setEnumValue("PixelFormat", "BGR8");
-                    else
-                        cams[i].setEnumValue("PixelFormat", "Mono8");
+                else
+                    cams[i].setEnumValue("PixelFormat", "Mono8");
+                ROS_INFO("Set Output Color"); 
+
+                // output frame size
+                cams[i].setIntValue("BinningHorizontal", binning_);
+                cams[i].setIntValue("BinningVertical", binning_);
+                ROS_INFO("Set Binning"); 
+                
+                // set to be triggerd by GPIO
                 cams[i].setEnumValue("AcquisitionMode", "Continuous");
                 cams[i].setEnumValue("TriggerMode", "On");
                 cams[i].setEnumValue("TriggerSource", "Line0");
-                
-                ConfigureImageEvents(camList_.GetByIndex(i));
+                ROS_INFO("Set Hardware Trigger");
+
+                // enable PTP
+                cams[i].setBoolValue("GevIEEE1588", true);
+                cams[i].setEnumValue("GevIEEE1588Mode", "SlaveOnly");
+                ROS_INFO("Set PTP");
+
+                //cams[i].setIntValue("GevPacketResendTimeout", 1000);
+                //ROS_INFO("Set Timeout");
+                ConfigureImageEvents(i);
+                ROS_INFO("Image Event Configured");
                 
             }
         }
@@ -498,7 +494,7 @@ void acquisition::Capture::init_cameras(bool soft = false) {
 }
 
 void acquisition::Capture::start_acquisition() {
-
+    Catch_Stop.setupSignalHandlers();
     for (int i = numCameras_-1; i>=0; i--)
         cams[i].begin_acquisition();    
 }
@@ -513,9 +509,6 @@ void acquisition::Capture::end_acquisition() {
 void acquisition::Capture::deinit_cameras() {
 
     ROS_INFO_STREAM("Deinitializing cameras...");
-
-    // end_acquisition();
-    
     for (int i = numCameras_-1 ; i >=0 ; i--) {
 
         ResetImageEvents(camList_.GetByIndex(i), handler_ptr_vec_[i]);
@@ -547,7 +540,7 @@ void acquisition::Capture::saving_thread()
 {
     if (!CAM_DIRS_CREATED_)
         create_cam_directories();
-    while(true)
+    while(!Catch_Stop.gotExitSignal())
         save_frames();
 }
 
@@ -558,11 +551,8 @@ void acquisition::Capture::ROS_pub_thread()
     {
         ROS_queue_vec_[i]->clear();
     }
-    while(true)
-    {
+    while(!Catch_Stop.gotExitSignal())
         export_to_ROS();
-        //usleep(10000);
-    }
 }
 
 void acquisition::Capture::save_frames()
@@ -676,6 +666,8 @@ std::string acquisition::Capture::todays_date()
 
 void acquisition::Capture::ConfigureImageEvents(CameraPtr pCam)
 {
+    if(!pCam->IsInitialized())
+        ROS_WARN("Camera not initialized");
     try
     {
         // Create image event
@@ -685,6 +677,28 @@ void acquisition::Capture::ConfigureImageEvents(CameraPtr pCam)
                             SAVE_, ros_queue_ptr, save_queue_ptr);
         // Register image event handler
         pCam->RegisterEvent(*imageEventHandler);
+        Save_queue_vec_.push_back(save_queue_ptr);
+        ROS_queue_vec_.push_back(ros_queue_ptr);
+        handler_ptr_vec_.push_back(imageEventHandler);
+    }
+    catch (Spinnaker::Exception &e)
+    {
+        ROS_FATAL_STREAM("Error: " << e.what());
+        ros::shutdown();
+    }
+}
+
+void acquisition::Capture::ConfigureImageEvents(int idx)
+{
+    try
+    {
+        // Create image event
+        shared_ptr<tbb::concurrent_queue<Mat>> save_queue_ptr(new tbb::concurrent_queue<Mat>);
+        shared_ptr<tbb::concurrent_queue<Mat>> ros_queue_ptr(new tbb::concurrent_queue<Mat>);
+        ImageEventHandler* imageEventHandler = new ImageEventHandler(cams[idx], color_, EXPORT_TO_ROS_ , 
+                            SAVE_, ros_queue_ptr, save_queue_ptr);
+        // Register image event handler
+        cams[idx].RegisterEvent(imageEventHandler);
         Save_queue_vec_.push_back(save_queue_ptr);
         ROS_queue_vec_.push_back(ros_queue_ptr);
         handler_ptr_vec_.push_back(imageEventHandler);

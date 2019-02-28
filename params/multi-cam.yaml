@@ -4,7 +4,7 @@ cam_ids:
 # 1 for BFS, and 0 for BF camera
 cam_types:
 - 1
-- 0
+- 1
 cam_aliases:
 - cam_L
 - cam_R

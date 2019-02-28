@@ -1,11 +1,11 @@
 cam_ids:
-- 18585142
+- 18585632
 # 1 for BFS, and 0 for BF camera
 cam_types:
 - 0
 cam_aliases:
 - cam0
-master_cam: 18585142
+master_cam: 18585632 #18585142
 skip: 20
 delay: 0
 

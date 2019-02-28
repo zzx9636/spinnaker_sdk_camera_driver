@@ -312,6 +312,15 @@ void acquisition::Camera::exposureTest() {
 
 }
 
+INodeMap & acquisition::Camera::GetTLDeviceNodeMap()
+{
+    return pCam_->GetTLDeviceNodeMap();
+}
+
+ void acquisition::Camera::RegisterEvent(Event *imageEventHandler)
+ {
+     pCam_->RegisterEvent(*imageEventHandler);
+ }
 /*
 void acquisition::Camera::RegisterEvent(ImageEventHandler imageEventHandler_ptr){
     pCam->RegisterEvent(imageEventHandler);

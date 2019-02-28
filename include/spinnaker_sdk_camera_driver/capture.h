@@ -4,6 +4,7 @@
 #include "std_include.h"
 #include "serialization.h"
 #include "camera.h"
+#include "spinnaker_sdk_camera_driver/signalHandler.h"
 
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/filesystem.hpp>
@@ -55,8 +56,11 @@ namespace acquisition {
         float mem_usage();
 
         void ConfigureImageEvents(CameraPtr pCam);
+        void ConfigureImageEvents(int idx);
         //void handler_wait4image(ImageEventHandler*& imageEventHandler);
         void ResetImageEvents(CameraPtr pCam, ImageEventHandler*& imageEventHandler);
+
+        SignalHandler Catch_Stop;
     
         SystemPtr system_;    
         CameraList camList_;

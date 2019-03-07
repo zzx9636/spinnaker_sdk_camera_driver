@@ -4,16 +4,24 @@
 
 #include "std_include.h"
 #include "serialization.h"
+#include "spinnaker_sdk_camera_driver/ImageEventHandler.h"
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/filesystem.hpp>
 #include <string>
-//#include "ImageEventHandler.h"
+#include <tbb/concurrent_queue.h>
 
 using namespace Spinnaker;
 using namespace Spinnaker::GenApi;
 using namespace Spinnaker::GenICam;
 using namespace cv;
 using namespace std;
+
+enum chunkDataType
+{
+        IMAGE,
+        NODEMAP
+};
+const chunkDataType chosenChunkData = IMAGE;
 
 namespace acquisition {
 
@@ -29,18 +37,11 @@ namespace acquisition {
         void begin_acquisition();
         void end_acquisition();
 
-        ImagePtr grab_frame();
-        Mat grab_mat_frame();
-        string get_time_stamp();
-        int get_frame_id();
-
         void setEnumValue(string, string);
         void setIntValue(string, int);
         void setFloatValue(string, float);
         void setBoolValue(string, bool);
 
-        void trigger();
-        
         void setISPEnable();
         void setFREnable();
         void setPixelFormat(gcstring formatPic);
@@ -50,18 +51,12 @@ namespace acquisition {
         void adcBitDepth(gcstring bitDep);
         Mat convert_to_mat(ImagePtr);
         INodeMap & GetTLDeviceNodeMap();
-        void RegisterEvent(Event *imageEventHandler);
-        // void set_acquisition_mode_continuous();
-        // void set_frame_rate(float);
-        // void set_horizontal_binning(int);
-        // void set_vertical_binning(int);
-        // void set_horizontal_decimation(int);
-        // void set_vertical_decimation(int);
+        void RegisterEvent(bool Color_, bool Export2ROS_, bool Save_, \
+            const shared_ptr<tbb::concurrent_queue<Mat>> & ROS_queue, \
+            const shared_ptr<tbb::concurrent_queue<Mat>> & Save_queue);
+        void ResetEvent();
 
-        // void setTrigDelay(float delay);
-        // void setTrigSelectorFrame();
-        // void setTrigMode();
-        // void setTriggerOverlapOff();
+        int ConfigureChunkData();
 
         string get_id() { return string(pCam_->GetUniqueID()); }
         void make_master() { MASTER_ = true; ROS_DEBUG_STREAM( "camera " << get_id() << " set as master"); }
@@ -71,7 +66,7 @@ namespace acquisition {
         
     private:
 
-        
+        ImageEventHandler* imageEventHandler=NULL;
         
         CameraPtr pCam_;
         int64_t timestamp_;

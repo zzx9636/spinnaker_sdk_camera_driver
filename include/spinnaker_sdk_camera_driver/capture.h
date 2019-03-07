@@ -11,7 +11,6 @@
 
 #include "std_msgs/String.h"
 #include "spinnaker_sdk_camera_driver/SpinnakerImageNames.h"
-#include "spinnaker_sdk_camera_driver/ImageEventHandler.h"
 #include <sstream>
 #include <tbb/concurrent_queue.h>
 #include <memory>
@@ -55,10 +54,8 @@ namespace acquisition {
         void export_to_ROS();
         float mem_usage();
 
-        void ConfigureImageEvents(CameraPtr pCam);
         void ConfigureImageEvents(int idx);
-        //void handler_wait4image(ImageEventHandler*& imageEventHandler);
-        void ResetImageEvents(CameraPtr pCam, ImageEventHandler*& imageEventHandler);
+        
 
         SignalHandler Catch_Stop;
     
@@ -80,7 +77,6 @@ namespace acquisition {
         vector<vector<double>> rect_coeff_vec_;
         vector<vector<double>> proj_coeff_vec_;
         vector<string> imageNames;
-        vector<ImageEventHandler*> handler_ptr_vec_;
         vector<shared_ptr<tbb::concurrent_queue<Mat>>> Save_queue_vec_;
         vector<shared_ptr<tbb::concurrent_queue<Mat>>> ROS_queue_vec_;   
         string path_;

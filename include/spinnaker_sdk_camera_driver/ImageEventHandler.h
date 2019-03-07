@@ -1,6 +1,7 @@
 #ifndef IMG_EVENT_HEADER
 #define IMG_EVENT_HEADER
 
+#include "std_include.h"
 #include "Spinnaker.h"
 #include "SpinGenApi/SpinnakerGenApi.h"
 #include <iostream>
@@ -9,7 +10,6 @@
 #include <string.h>
 #include <tbb/concurrent_queue.h>
 #include <memory>
-#include "camera.h"
 #include <mutex>
 
 
@@ -30,7 +30,7 @@ class ImageEventHandler : public ImageEvent
                         const shared_ptr<tbb::concurrent_queue<Mat>>& ros_queue_ptr, 
                         const shared_ptr<tbb::concurrent_queue<Mat>>& save_queue_ptr);
 
-                ImageEventHandler(acquisition::Camera& cam, bool if_color, bool to_ros , bool save, const shared_ptr<tbb::concurrent_queue<Mat>>& ros_queue_ptr, const shared_ptr<tbb::concurrent_queue<Mat>>& save_queue_ptr);
+                //ImageEventHandler(acquisition::Camera& cam, bool if_color, bool to_ros , bool save, const shared_ptr<tbb::concurrent_queue<Mat>>& ros_queue_ptr, const shared_ptr<tbb::concurrent_queue<Mat>>& save_queue_ptr);
 
                 ~ImageEventHandler();
                 // This method defines an image event. In it, the image that triggered the 

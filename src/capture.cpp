@@ -510,11 +510,9 @@ void acquisition::Capture::deinit_cameras() {
 
     ROS_INFO_STREAM("Deinitializing cameras...");
     for (int i = numCameras_-1 ; i >=0 ; i--) {
-
-        ResetImageEvents(camList_.GetByIndex(i), handler_ptr_vec_[i]);
         ROS_DEBUG_STREAM("Camera "<<i<<": Deinit...");
+        cams[i].ResetEvent();
         cams[i].deinit();
-        // pCam = NULL;
     }
     ROS_INFO_STREAM("All cameras deinitialized."); 
 
@@ -523,7 +521,6 @@ void acquisition::Capture::deinit_cameras() {
 void acquisition::Capture::create_cam_directories() {
 
     ROS_DEBUG_STREAM("Creating camera directories...");
-    
     for (int i=0; i<numCameras_; i++) {
         ostringstream ss;
         ss<<path_<<cam_names_[i];
@@ -531,7 +528,6 @@ void acquisition::Capture::create_cam_directories() {
             ROS_WARN_STREAM("Failed to create directory "<<ss.str()<<"! Data will be written into pre existing directory if it exists...");
         }
     }
-
     CAM_DIRS_CREATED_ = true;
     
 }
@@ -644,7 +640,7 @@ void acquisition::Capture::run() {
 
    ROS_INFO("*** ACQUISITION ***"); 
    start_acquisition();
-   //handler_wait4image(handler_ptr_vec_[0]);
+
     vector<thread> thread_vec_;
    if(EXPORT_TO_ROS_)
         thread_vec_.push_back(thread(& acquisition::Capture::ROS_pub_thread, this)); 
@@ -664,73 +660,14 @@ std::string acquisition::Capture::todays_date()
     return td;
 }
 
-void acquisition::Capture::ConfigureImageEvents(CameraPtr pCam)
-{
-    if(!pCam->IsInitialized())
-        ROS_WARN("Camera not initialized");
-    try
-    {
-        // Create image event
-        shared_ptr<tbb::concurrent_queue<Mat>> save_queue_ptr(new tbb::concurrent_queue<Mat>);
-        shared_ptr<tbb::concurrent_queue<Mat>> ros_queue_ptr(new tbb::concurrent_queue<Mat>);
-        ImageEventHandler* imageEventHandler = new ImageEventHandler(pCam, color_, EXPORT_TO_ROS_ , 
-                            SAVE_, ros_queue_ptr, save_queue_ptr);
-        // Register image event handler
-        pCam->RegisterEvent(*imageEventHandler);
-        Save_queue_vec_.push_back(save_queue_ptr);
-        ROS_queue_vec_.push_back(ros_queue_ptr);
-        handler_ptr_vec_.push_back(imageEventHandler);
-    }
-    catch (Spinnaker::Exception &e)
-    {
-        ROS_FATAL_STREAM("Error: " << e.what());
-        ros::shutdown();
-    }
-}
-
 void acquisition::Capture::ConfigureImageEvents(int idx)
 {
-    try
-    {
-        // Create image event
-        shared_ptr<tbb::concurrent_queue<Mat>> save_queue_ptr(new tbb::concurrent_queue<Mat>);
-        shared_ptr<tbb::concurrent_queue<Mat>> ros_queue_ptr(new tbb::concurrent_queue<Mat>);
-        ImageEventHandler* imageEventHandler = new ImageEventHandler(cams[idx], color_, EXPORT_TO_ROS_ , 
+    // Create image event
+    shared_ptr<tbb::concurrent_queue<Mat>> save_queue_ptr(new tbb::concurrent_queue<Mat>);
+    shared_ptr<tbb::concurrent_queue<Mat>> ros_queue_ptr(new tbb::concurrent_queue<Mat>);
+    cams[idx].RegisterEvent( color_, EXPORT_TO_ROS_ , \
                             SAVE_, ros_queue_ptr, save_queue_ptr);
-        // Register image event handler
-        cams[idx].RegisterEvent(imageEventHandler);
-        Save_queue_vec_.push_back(save_queue_ptr);
-        ROS_queue_vec_.push_back(ros_queue_ptr);
-        handler_ptr_vec_.push_back(imageEventHandler);
-    }
-    catch (Spinnaker::Exception &e)
-    {
-        ROS_FATAL_STREAM("Error: " << e.what());
-        ros::shutdown();
-    }
+    Save_queue_vec_.push_back(save_queue_ptr);
+    ROS_queue_vec_.push_back(ros_queue_ptr);
 }
 
-
-void acquisition::Capture::ResetImageEvents(CameraPtr pCam, ImageEventHandler*& imageEventHandler)
-{
-    try
-    {
-        //
-        // Unregister image event handler
-        //
-        // *** NOTES ***
-        // It is important to unregister all image events from all cameras
-        // they are registered to.
-        //
-        pCam->UnregisterEvent(*imageEventHandler);
-        // Delete image event (because it is a pointer)
-        delete imageEventHandler;
-        
-        ROS_INFO_STREAM("Image events unregistered...");
-    }
-    catch (Spinnaker::Exception &e)
-    {
-        ROS_FATAL_STREAM("Error: " << e.what());
-        ros::shutdown();
-    }
-}

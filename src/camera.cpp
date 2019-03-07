@@ -37,58 +37,6 @@ void acquisition::Camera::deinit() {
 
 }
 
-ImagePtr acquisition::Camera::grab_frame() {
-
-    ImagePtr pResultImage = pCam_->GetNextImage(GET_NEXT_IMAGE_TIMEOUT_);
-
-    // Check if the Image is complete
-    if (pResultImage->IsIncomplete()) {
-        
-        ROS_WARN_STREAM("Image incomplete with image status " << pResultImage->GetImageStatus() << "!");
-
-    } else {
-
-        timestamp_ = pResultImage->GetTimeStamp();
-    
-        if (frameID_ >= 0) {
-            lastFrameID_ = frameID_;
-            frameID_ = pResultImage->GetFrameID();
-            ROS_WARN_STREAM_COND(frameID_ > lastFrameID_ + 1,"Frames are being skipped!");
-        } else {
-            frameID_ = pResultImage->GetFrameID();
-            //ROS_ASSERT_MSG(frameID_ == 0 ,"First frame ID was not zero! Might cause sync issues later...");
-        }
-
-    }
-    
-    ROS_DEBUG_STREAM("Grabbed frame from camera " << get_id() << " with timestamp " << timestamp_*1000);
-    
-    return pResultImage;
-    
-}
-
-// Returns last timestamp
-string acquisition::Camera::get_time_stamp() {
-
-    stringstream ss;
-    ss<<timestamp_*1000;
-    return ss.str();
-
-}
-
-int acquisition::Camera::get_frame_id() {
-
-    return frameID_;
-
-}
-
-Mat acquisition::Camera::grab_mat_frame() {
-
-    ImagePtr pResultImage = grab_frame();
-    return convert_to_mat(pResultImage);
-
-}
-
 Mat acquisition::Camera::convert_to_mat(ImagePtr pImage) {
 
     ImagePtr convertedImage;
@@ -288,19 +236,6 @@ void acquisition::Camera::setPixelFormat(gcstring formatPic) {
     ROS_DEBUG_STREAM( "Camera " << " set pixel format");
 }
 
-void acquisition::Camera::trigger() {
-
-    INodeMap & nodeMap = pCam_->GetNodeMap();
-    
-    CCommandPtr ptr = nodeMap.GetNode("TriggerSoftware");
-    if (!IsAvailable(ptr) || !IsWritable(ptr))
-        ROS_FATAL_STREAM("Unable to execute trigger. Aborting...");
-
-    ROS_DEBUG_STREAM("Executing software trigger...");
-    ptr->Execute();
-    
-}
-
 void acquisition::Camera::exposureTest() {
     CFloatPtr ptrExpTest=pCam_->GetNodeMap().GetNode("ExposureTime");
     if (!IsAvailable(ptrExpTest) || !IsReadable(ptrExpTest)){
@@ -317,12 +252,110 @@ INodeMap & acquisition::Camera::GetTLDeviceNodeMap()
     return pCam_->GetTLDeviceNodeMap();
 }
 
- void acquisition::Camera::RegisterEvent(Event *imageEventHandler)
- {
-     pCam_->RegisterEvent(*imageEventHandler);
- }
-/*
-void acquisition::Camera::RegisterEvent(ImageEventHandler imageEventHandler_ptr){
-    pCam->RegisterEvent(imageEventHandler);
+void acquisition::Camera::RegisterEvent(bool Color_, bool Export2ROS_, bool Save_, \
+            const shared_ptr<tbb::concurrent_queue<Mat>> & ROS_queue, \
+            const shared_ptr<tbb::concurrent_queue<Mat>> & Save_queue)
+{
+    if(!pCam_->IsInitialized())
+        ROS_WARN("Camera not initialized");
+    try{
+        imageEventHandler = new ImageEventHandler(pCam_, Color_, Export2ROS_ , \
+                        Save_, ROS_queue, Save_queue);  
+        pCam_->RegisterEvent(*imageEventHandler);
+    }catch(Spinnaker::Exception &e){
+        ROS_FATAL_STREAM("Error: " << e.what());
+        ros::shutdown();
+    }   
 }
-*/
+
+void acquisition::Camera::ResetEvent()
+{
+    try{
+        //
+        // Unregister image event handler
+        //
+        // *** NOTES ***
+        // It is important to unregister all image events from all cameras
+        // they are registered to.
+        //
+        pCam_->UnregisterEvent(*imageEventHandler);
+        // Delete image event (because it is a pointer)
+        delete imageEventHandler;
+        imageEventHandler = NULL;
+        ROS_INFO_STREAM("Image events unregistered...");
+    }catch (Spinnaker::Exception &e)
+    {
+        ROS_FATAL_STREAM("Error: " << e.what());
+        ros::shutdown();
+    }
+}
+
+int acquisition::Camera::ConfigureChunkData()
+{
+    INodeMap & nodeMap = pCam_->GetNodeMap();
+    int result = 0;
+    ROS_INFO("*** CONFIGURING CHUNK DATA ***" );
+    try
+    {
+            // Activate chunk mode
+            CBooleanPtr ptrChunkModeActive = nodeMap.GetNode("ChunkModeActive");
+            if (!IsAvailable(ptrChunkModeActive) || !IsWritable(ptrChunkModeActive))
+            {
+                    cout << "Unable to activate chunk mode. Aborting..." << endl << endl;
+                    return -1;
+            }
+            ptrChunkModeActive->SetValue(true);
+            cout << "Chunk mode activated..." << endl;
+            // Enable all types of chunk data
+           
+            NodeList_t entries;
+            // Retrieve the selector node
+            CEnumerationPtr ptrChunkSelector = nodeMap.GetNode("ChunkSelector");
+            if (!IsAvailable(ptrChunkSelector) || !IsReadable(ptrChunkSelector))
+            {
+                    cout << "Unable to retrieve chunk selector. Aborting..." << endl << endl;
+                    return -1;
+            }
+            // Retrieve entries
+            ptrChunkSelector->GetEntries(entries);
+            cout << "Enabling entries..." << endl;
+            for (int i = 0; i < entries.size(); i++)
+            {
+                    // Select entry to be enabled
+                    CEnumEntryPtr ptrChunkSelectorEntry = entries.at(i);
+                    // Go to next node if problem occurs
+                    if (!IsAvailable(ptrChunkSelectorEntry) || !IsReadable(ptrChunkSelectorEntry))
+                    {
+                            continue;
+                    }
+                    ptrChunkSelector->SetIntValue(ptrChunkSelectorEntry->GetValue());
+                    cout << "\t" << ptrChunkSelectorEntry->GetSymbolic() << ": ";
+                    // Retrieve corresponding boolean
+                    CBooleanPtr ptrChunkEnable = nodeMap.GetNode("ChunkEnable");
+                    // Enable the boolean, thus enabling the corresponding chunk data
+                    if (!IsAvailable(ptrChunkEnable))
+                    {
+                            cout << "Node not available" << endl;
+                    }
+                    else if (ptrChunkEnable->GetValue())
+                    {
+                            cout << "Enabled" << endl;
+                    }
+                    else if (IsWritable(ptrChunkEnable))
+                    {
+                            ptrChunkEnable->SetValue(true);
+                            cout << "Enabled" << endl;
+                    }
+                    else
+                    {
+                            cout << "Node not writable" << endl;
+                    }
+            }
+    }
+    catch (Spinnaker::Exception &e)
+    {
+            ROS_WARN_STREAM("Error: " << e.what() );
+            result = -1;
+    }
+    return result;
+}

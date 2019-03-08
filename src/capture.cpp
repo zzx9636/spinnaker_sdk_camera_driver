@@ -78,7 +78,7 @@ acquisition::Capture::Capture():nh_(),nh_pvt_ ("~") {
     load_cameras();
  
     //initializing the ros publisher
-    acquisition_pub = nh_.advertise<spinnaker_sdk_camera_driver::SpinnakerImageNames>("camera", 1000);
+    //acquisition_pub = nh_.advertise<spinnaker_sdk_camera_driver::SpinnakerImageNames>("camera", 1000);
 }
 
 void acquisition::Capture::load_cameras() {
@@ -111,8 +111,8 @@ void acquisition::Capture::load_cameras() {
                 cam.set_cam_type(cam_types_[i]);        
                 cams.push_back(cam);
                 
-                camera_image_pubs.push_back(nh_.advertise<sensor_msgs::Image>("camera_array/"+cam_names_[j]+"/image_raw", 1));
-                camera_info_pubs.push_back(nh_.advertise<sensor_msgs::CameraInfo>("camera_array/"+cam_names_[j]+"/camera_info", 1));
+                camera_image_pubs.push_back(nh_.advertise<sensor_msgs::Image>("RGB_camera/"+cam_names_[j]+"/image_raw", 1));
+                camera_info_pubs.push_back(nh_.advertise<sensor_msgs::CameraInfo>("RGB_camera/"+cam_names_[j]+"/camera_info", 1));
                 img_msgs.push_back(sensor_msgs::ImagePtr());
                 
                 if (PUBLISH_CAM_INFO_){
@@ -341,61 +341,52 @@ void acquisition::Capture::read_parameters() {
             ROS_INFO("  Camera coeffs not provided correctly, camera info messges will not be published.");
 }
 
-void acquisition::Capture::init_array() {
-    init_cameras(false);
-}
-
-void acquisition::Capture::init_cameras(bool soft = false) {
-    // when soft, only check is camera pointer can be initialized or not
+void acquisition::Capture::init_cameras() {
     ROS_INFO_STREAM("Initializing cameras...");
     // Set cameras 1 to 4 to continuous
     for (int i = 0 ; i < numCameras_; i++) {                
         ROS_DEBUG_STREAM("Initializing camera " << cam_ids_[i] << "...");
         try {         
             cams[i].init();
-            if (!soft) {
-                // set exposure mode
-                cams[i].setEnumValue("ExposureMode", "Timed");
-                if (exposure_time_ > 0) { 
-                    cams[i].setEnumValue("ExposureAuto", "Off");
-                    cams[i].setFloatValue("ExposureTime", exposure_time_);
-                } else {
-                    cams[i].setEnumValue("ExposureAuto", "Continuous");
-                }
-                ROS_INFO("Set Exposure");
 
-                // set color mode for camera
-                cams[i].set_color(color_);
-                if (color_)
-                    cams[i].setEnumValue("PixelFormat", "BGR8");
-                else
-                    cams[i].setEnumValue("PixelFormat", "Mono8");
-                ROS_INFO("Set Output Color"); 
-
-                // output frame size
-                cams[i].setIntValue("BinningHorizontal", binning_);
-                cams[i].setIntValue("BinningVertical", binning_);
-                ROS_INFO("Set Binning"); 
-                
-                // set to be triggerd by GPIO
-                cams[i].setEnumValue("AcquisitionMode", "Continuous");
-                cams[i].setEnumValue("TriggerMode", "On");
-                cams[i].setEnumValue("TriggerSource", "Line0");
-                ROS_INFO("Set Hardware Trigger");
-
-                // enable PTP
-                cams[i].setBoolValue("GevIEEE1588", true);
-                cams[i].setEnumValue("GevIEEE1588Mode", "SlaveOnly");
-                ROS_INFO("Set PTP");
-
-                //cams[i].setIntValue("GevPacketResendTimeout", 1000);
-                //ROS_INFO("Set Timeout");
-                ConfigureImageEvents(i);
-                ROS_INFO("Image Event Configured");
-                
+            cams[i].setEnumValue("AcquisitionMode", "Continuous");
+            // set exposure mode
+            cams[i].setEnumValue("ExposureMode", "Timed");
+            if (exposure_time_ > 0) { 
+                cams[i].setEnumValue("ExposureAuto", "Off");
+                cams[i].setFloatValue("ExposureTime", exposure_time_);
+            } else {
+                cams[i].setEnumValue("ExposureAuto", "Continuous");
             }
-        }
+            ROS_INFO("Set Exposure");
 
+            // set color mode for camera
+            cams[i].set_color(color_);
+            if (color_)
+                cams[i].setEnumValue("PixelFormat", "BGR8");
+            else
+                cams[i].setEnumValue("PixelFormat", "Mono8");
+            ROS_INFO("Set Output Color"); 
+
+            // output frame size
+            cams[i].setIntValue("BinningHorizontal", binning_);
+            cams[i].setIntValue("BinningVertical", binning_);
+            ROS_INFO("Set Binning"); 
+            
+            // set to be triggerd by GPIO
+            cams[i].setEnumValue("AcquisitionMode", "Continuous");
+            cams[i].setEnumValue("TriggerMode", "On");
+            cams[i].setEnumValue("TriggerSource", "Line0");
+            ROS_INFO("Set Hardware Trigger");
+
+            // enable PTP
+            cams[i].setBoolValue("GevIEEE1588", true);
+            cams[i].setEnumValue("GevIEEE1588Mode", "SlaveOnly");
+            ROS_INFO("Set PTP enabled");
+
+            ConfigureImageEvents(i);
+            ROS_INFO("Image Event Configured");
+        }
         catch (Spinnaker::Exception &e) {
             string error_msg = e.what();
             ROS_FATAL_STREAM("Error: " << error_msg);
@@ -438,10 +429,16 @@ void acquisition::Capture::create_cam_directories() {
     ROS_DEBUG_STREAM("Creating camera directories...");
     for (int i=0; i<numCameras_; i++) {
         ostringstream ss;
-        ss<<path_<<cam_names_[i];
+        ss<<path_<<"RGB_cam_"<<todays_date_<<"/"<<cam_names_[i];
         if (mkdir(ss.str().c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) < 0) {
             ROS_WARN_STREAM("Failed to create directory "<<ss.str()<<"! Data will be written into pre existing directory if it exists...");
         }
+        shared_ptr<ofstream> logfile(new std::ofstream);
+        ostringstream LogName;
+        LogName << ss.str() << "/" << "log_"<< todays_date_ <<".txt";
+        logfile->open(LogName.str());
+        *logfile<<cam_names_[i]<<"_timestamp\t"<<cam_names_[i]<<"_framecount\n";
+        logfile_vec_.push_back(logfile);
     }
     CAM_DIRS_CREATED_ = true;
     
@@ -453,6 +450,9 @@ void acquisition::Capture::saving_thread()
         create_cam_directories();
     while(!Catch_Stop.gotExitSignal())
         save_frames();
+
+    for(auto & logfile : logfile_vec_)
+        logfile->close();
 }
 
 void acquisition::Capture::ROS_pub_thread()
@@ -510,7 +510,7 @@ void acquisition::Capture::export_to_ROS() {
                 camera_image_pubs[i].publish(img_msgs[i]);
 
                 if (PUBLISH_CAM_INFO_){
-                    cam_info_msgs[i].header.stamp = mesg.header.stamp;
+                    cam_info_msgs[i].header.stamp = img_msg_header.stamp;
                     camera_info_pubs[i].publish(cam_info_msgs[i]);
                 }
                 export_to_ROS_time_ = ros::Time::now().toSec()-t;
@@ -565,7 +565,7 @@ std::string acquisition::Capture::todays_date()
 {
     char out[9];
     std::time_t t=std::time(NULL);
-    std::strftime(out, sizeof(out), "%Y%m%d", std::localtime(&t));
+    std::strftime(out, sizeof(out), "%Y_%m_%d_%H_%M_%S", std::localtime(&t));
     std::string td(out);
     return td;
 }
@@ -580,4 +580,5 @@ void acquisition::Capture::ConfigureImageEvents(int idx)
     Save_queue_vec_.push_back(save_queue_ptr);
     ROS_queue_vec_.push_back(ros_queue_ptr);
 }
+
 

@@ -16,12 +16,6 @@ using namespace Spinnaker::GenICam;
 using namespace cv;
 using namespace std;
 
-enum chunkDataType
-{
-        IMAGE,
-        NODEMAP
-};
-const chunkDataType chosenChunkData = IMAGE;
 
 namespace acquisition {
 
@@ -56,11 +50,9 @@ namespace acquisition {
             const shared_ptr<tbb::concurrent_queue<cvMatContainer*>> & Save_queue);
         void ResetEvent();
 
-        int ConfigureChunkData();
+        void ConfigureChunkData();
 
         string get_id() { return string(pCam_->GetUniqueID()); }
-        void make_master() { MASTER_ = true; ROS_DEBUG_STREAM( "camera " << get_id() << " set as master"); }
-        bool is_master() { return MASTER_; }
         void set_color(bool flag) { COLOR_ = flag; }
         void set_cam_type(string type) { TYPE_ = type; }
         

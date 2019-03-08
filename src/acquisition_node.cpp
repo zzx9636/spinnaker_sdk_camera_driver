@@ -13,7 +13,7 @@ int main(int argc, char** argv) {
     ros::init(argc, argv, "acquisition_node");
     
     acquisition::Capture cobj;
-    cobj.init_array();
+    cobj.init_cameras();
     cobj.run();
     
     return 0;

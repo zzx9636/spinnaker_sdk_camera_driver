@@ -28,6 +28,7 @@ acquisition::Camera::Camera(CameraPtr pCam) {
 void acquisition::Camera::init() {
 
     pCam_->Init();
+    ConfigureChunkData();
     
 }
 
@@ -290,10 +291,9 @@ void acquisition::Camera::ResetEvent()
     }
 }
 
-int acquisition::Camera::ConfigureChunkData()
+void acquisition::Camera::ConfigureChunkData()
 {
     INodeMap & nodeMap = pCam_->GetNodeMap();
-    int result = 0;
     ROS_INFO("*** CONFIGURING CHUNK DATA ***" );
     try
     {
@@ -302,7 +302,7 @@ int acquisition::Camera::ConfigureChunkData()
             if (!IsAvailable(ptrChunkModeActive) || !IsWritable(ptrChunkModeActive))
             {
                     ROS_WARN("Unable to activate chunk mode. Aborting...");
-                    return -1;
+                    return;
             }
             ptrChunkModeActive->SetValue(true);
             ROS_INFO("Chunk mode activated");
@@ -314,7 +314,7 @@ int acquisition::Camera::ConfigureChunkData()
             if (!IsAvailable(ptrChunkSelector) || !IsReadable(ptrChunkSelector))
             {
                     ROS_WARN("Unable to retrieve chunk selector. Aborting...");
-                    return -1;
+                    return;
             }
             // Retrieve entries
             ptrChunkSelector->GetEntries(entries);
@@ -355,7 +355,7 @@ int acquisition::Camera::ConfigureChunkData()
     catch (Spinnaker::Exception &e)
     {
             ROS_WARN_STREAM("Error: " << e.what() );
-            result = -1;
+            return;
     }
-    return result;
+    return;
 }

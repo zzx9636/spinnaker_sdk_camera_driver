@@ -32,20 +32,20 @@ acquisition::Capture::Capture():nh_(),nh_pvt_ ("~") {
 
     // sigaction(SIGINT, &sigIntHandler, NULL);
 
-    int mem;
-    ifstream usb_mem("/sys/module/usbcore/parameters/usbfs_memory_mb");
-    if (usb_mem) {
-        usb_mem >> mem;
-        if (mem >= 1000)
-            ROS_INFO_STREAM("[ OK ] USB memory: "<<mem<<" MB");
-        else{
-            ROS_FATAL_STREAM("  USB memory on system too low ("<<mem<<" MB)! Must be at least 1000 MB. Run: \nsudo sh -c \"echo 1000 > /sys/module/usbcore/parameters/usbfs_memory_mb\"\n Terminating...");
-            ros::shutdown();
-        }
-    } else {
-        ROS_FATAL_STREAM("Could not check USB memory on system! Terminating...");
-        ros::shutdown();
-    }
+    // int mem;
+    // ifstream usb_mem("/sys/module/usbcore/parameters/usbfs_memory_mb");
+    // if (usb_mem) {
+    //     usb_mem >> mem;
+    //     if (mem >= 1000)
+    //         ROS_INFO_STREAM("[ OK ] USB memory: "<<mem<<" MB");
+    //     else{
+    //         ROS_FATAL_STREAM("  USB memory on system too low ("<<mem<<" MB)! Must be at least 1000 MB. Run: \nsudo sh -c \"echo 1000 > /sys/module/usbcore/parameters/usbfs_memory_mb\"\n Terminating...");
+    //         ros::shutdown();
+    //     }
+    // } else {
+    //     ROS_FATAL_STREAM("Could not check USB memory on system! Terminating...");
+    //     ros::shutdown();
+    // }
 
     // default values for the parameters are set here. Should be removed eventually!!
     exposure_time_ = 0 ; // default as 0 = auto exposure
@@ -426,10 +426,17 @@ void acquisition::Capture::deinit_cameras() {
 
 void acquisition::Capture::create_cam_directories() {
 
-    ROS_DEBUG_STREAM("Creating camera directories...");
+    ROS_INFO_STREAM("Creating camera directories...");
+    ostringstream base_folder;
+    base_folder<<path_<<"RGB_cam_"<<todays_date_<<"/";
+     ROS_INFO_STREAM("Create folder"<<base_folder.str());
+    if (mkdir(base_folder.str().c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) < 0) {
+            ROS_WARN_STREAM("Failed to create directory "<<base_folder.str()<<"! Data will be written into pre existing directory if it exists...");
+    }
     for (int i=0; i<numCameras_; i++) {
         ostringstream ss;
-        ss<<path_<<"RGB_cam_"<<todays_date_<<"/"<<cam_names_[i];
+        ss<<base_folder.str()<<cam_names_[i];
+        ROS_INFO_STREAM("Create folder"<<ss.str());
         if (mkdir(ss.str().c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) < 0) {
             ROS_WARN_STREAM("Failed to create directory "<<ss.str()<<"! Data will be written into pre existing directory if it exists...");
         }
@@ -441,7 +448,6 @@ void acquisition::Capture::create_cam_directories() {
         logfile_vec_.push_back(logfile);
     }
     CAM_DIRS_CREATED_ = true;
-    
 }
 
 void acquisition::Capture::saving_thread()
@@ -480,6 +486,7 @@ void acquisition::Capture::save_frames()
                 filename<< path_ << cam_names_[i] << "/" << timestamp << ext_;
                 ROS_DEBUG_STREAM("Saving image at " << filename.str());
                 frames_->saveImg(filename.str());
+                *(logfile_vec_[i])<< frames_->getTimeCam()<<"\t"<< frames_->getFrameNum()<<"\n";
                 delete frames_;
                 frames_ = NULL;
             }
@@ -547,10 +554,8 @@ float acquisition::Capture::mem_usage() {
 
 
 void acquisition::Capture::run() {
-
-   ROS_INFO("*** ACQUISITION ***"); 
-   start_acquisition();
-
+    ROS_INFO("*** ACQUISITION ***"); 
+    start_acquisition();
     vector<thread> thread_vec_;
    if(EXPORT_TO_ROS_)
         thread_vec_.push_back(thread(& acquisition::Capture::ROS_pub_thread, this)); 
@@ -563,7 +568,7 @@ void acquisition::Capture::run() {
 
 std::string acquisition::Capture::todays_date()
 {
-    char out[9];
+    char out[80];
     std::time_t t=std::time(NULL);
     std::strftime(out, sizeof(out), "%Y_%m_%d_%H_%M_%S", std::localtime(&t));
     std::string td(out);

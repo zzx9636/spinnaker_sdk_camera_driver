@@ -4,6 +4,7 @@
 #include "std_include.h"
 #include "Spinnaker.h"
 #include "SpinGenApi/SpinnakerGenApi.h"
+#include "spinnaker_sdk_camera_driver/cvMatContainer.h"
 #include <iostream>
 #include <sstream>
 #include <ros/console.h>
@@ -28,7 +29,7 @@ class ImageEventHandler : public ImageEvent
                 // counter to 0.
                 ImageEventHandler(CameraPtr pCam, bool if_color, bool to_ros , bool save,
                         const shared_ptr<tbb::concurrent_queue<Mat>>& ros_queue_ptr, 
-                        const shared_ptr<tbb::concurrent_queue<Mat>>& save_queue_ptr);
+                        const shared_ptr<tbb::concurrent_queue<cvMatContainer*>>& save_queue_ptr);
 
                 //ImageEventHandler(acquisition::Camera& cam, bool if_color, bool to_ros , bool save, const shared_ptr<tbb::concurrent_queue<Mat>>& ros_queue_ptr, const shared_ptr<tbb::concurrent_queue<Mat>>& save_queue_ptr);
 
@@ -44,11 +45,11 @@ class ImageEventHandler : public ImageEvent
         
         
         private:
-                void save2queue(ImagePtr convertedImage);
+                void save2queue(ImagePtr convertedImage, int64_t time_stamp,  int framecount);
                 static const unsigned int mk_numImages = 10000000;
                 unsigned int m_imageCnt;
                 string m_deviceSerialNumber;
-                shared_ptr<tbb::concurrent_queue<Mat>> SAVE_queue;
+                shared_ptr<tbb::concurrent_queue<cvMatContainer*>> SAVE_queue;
                 shared_ptr<tbb::concurrent_queue<Mat>> ROS_queue;
                 
                 bool COLOR_;

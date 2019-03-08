@@ -11,6 +11,7 @@
 
 #include "std_msgs/String.h"
 #include "spinnaker_sdk_camera_driver/SpinnakerImageNames.h"
+#include "spinnaker_sdk_camera_driver/cvMatContainer.h"
 #include <sstream>
 #include <tbb/concurrent_queue.h>
 #include <memory>
@@ -68,16 +69,14 @@ namespace acquisition {
         string master_cam_id_;
         unsigned int numCameras_;
         vector<CameraPtr> pCams_;
-        vector<ImagePtr> pResultImages_;
-        vector<Mat> frames_;
-        vector<string> time_stamps_;
-        vector< vector<Mat> > mem_frames_;
+        cvMatContainer* frames_=NULL;
+
         vector<vector<double>> intrinsic_coeff_vec_;
         vector<vector<double>> distortion_coeff_vec_;
         vector<vector<double>> rect_coeff_vec_;
         vector<vector<double>> proj_coeff_vec_;
-        vector<string> imageNames;
-        vector<shared_ptr<tbb::concurrent_queue<Mat>>> Save_queue_vec_;
+        
+        vector<shared_ptr<tbb::concurrent_queue<cvMatContainer*>>> Save_queue_vec_;
         vector<shared_ptr<tbb::concurrent_queue<Mat>>> ROS_queue_vec_;   
         string path_;
         string todays_date_;
@@ -85,34 +84,17 @@ namespace acquisition {
         time_t time_now_;
         double grab_time_, save_time_, toMat_time_, save_mat_time_, export_to_ROS_time_, achieved_time_;
 
-        int nframes_;
-        float init_delay_;
-        int skip_num_;
-        float master_fps_;
         int binning_;
         bool color_;
-        string dump_img_;
         string ext_;
         float exposure_time_;
-        // int decimation_;
-
-        int soft_framerate_; // Software (ROS) frame rate
         
-        int MASTER_CAM_;
         int CAM_; // active cam during live
 
-        bool FIXED_NUM_FRAMES_;
-        bool TIME_BENCHMARK_;
-        bool MASTER_TIMESTAMP_FOR_ALL_;
         bool SAVE_;
         bool CAM_DIRS_CREATED_;
-        bool GRID_VIEW_;
         bool EXPORT_TO_ROS_;
         bool PUBLISH_CAM_INFO_;
-
-        // grid view related variables
-        bool GRID_CREATED_;
-        Mat grid_;
 
         // ros variables
         ros::NodeHandle nh_;

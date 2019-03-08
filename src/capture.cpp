@@ -3,12 +3,6 @@
 acquisition::Capture::~Capture(){
 
     // destructor
-
-    ifstream file(dump_img_.c_str());
-    if (file)
-        if (remove(dump_img_.c_str()) != 0)
-            ROS_WARN_STREAM("Unable to remove dump image!");
-
     end_acquisition();
     deinit_cameras();
 
@@ -55,24 +49,15 @@ acquisition::Capture::Capture():nh_(),nh_pvt_ ("~") {
 
     // default values for the parameters are set here. Should be removed eventually!!
     exposure_time_ = 0 ; // default as 0 = auto exposure
-    soft_framerate_ = 20; //default soft framrate
-    ext_ = ".bmp";
-    TIME_BENCHMARK_ = false;
-    MASTER_TIMESTAMP_FOR_ALL_ = true;    
+
+    ext_ = ".tiff";
     EXPORT_TO_ROS_ = false;
     PUBLISH_CAM_INFO_ = false;
     SAVE_ = false;
-    nframes_ = -1;
-    FIXED_NUM_FRAMES_ = false;
-    //MAX_RATE_SAVE_ = false;
-    skip_num_ = 20; 
-    init_delay_ = 1; 
-    master_fps_ = 20.0;
+
     binning_ = 1;
     todays_date_ = todays_date();
     
-    dump_img_ = "dump" + ext_;
-
     grab_time_ = 0;
     save_time_ = 0;
     toMat_time_ = 0;
@@ -82,10 +67,6 @@ acquisition::Capture::Capture():nh_(),nh_pvt_ ("~") {
         
     // decimation_ = 1;
     CAM_ = 0;
-
-    // default flag values
-    CAM_DIRS_CREATED_ = false;
-    GRID_CREATED_ = false;
 
     //read_settings(config_file);
     read_parameters();
@@ -126,20 +107,8 @@ void acquisition::Capture::load_cameras() {
             
             if (cam.get_id().compare(cam_ids_[j]) == 0) {
                 current_cam_found=true;
-                if (cam.get_id().compare(master_cam_id_) == 0) {
-                    cam.make_master();
-                    master_set = true;
-                    MASTER_CAM_ = cam_counter;
-                }
-                cam.set_cam_type(cam_types_[i]);
-                
-                ImagePtr a_null;
-                pResultImages_.push_back(a_null);
-
-                Mat img;
-                frames_.push_back(img);
-                time_stamps_.push_back("");
-        
+    
+                cam.set_cam_type(cam_types_[i]);        
                 cams.push_back(cam);
                 
                 camera_image_pubs.push_back(nh_.advertise<sensor_msgs::Image>("camera_array/"+cam_names_[j]+"/image_raw", 1));
@@ -258,22 +227,6 @@ void acquisition::Capture::read_parameters() {
             cam_names_.push_back(cam_ids_[i]);
     }
 
-    int mcam_int;
-    ROS_ASSERT_MSG(nh_pvt_.getParam("master_cam", mcam_int),"master_cam is required!");
-    master_cam_id_=to_string(mcam_int);
-    bool found = false;
-    for (int i=0; i<cam_ids_.size(); i++) {
-        if (master_cam_id_.compare(cam_ids_[i]) == 0)
-            found = true;
-    }
-    ROS_ASSERT_MSG(found,"Specified master cam is not in the cam_ids list!");
-    
-    if (nh_pvt_.getParam("utstamps", MASTER_TIMESTAMP_FOR_ALL_)){
-        MASTER_TIMESTAMP_FOR_ALL_ = !MASTER_TIMESTAMP_FOR_ALL_;
-        ROS_INFO("  Unique time stamps for each camera: %s",!MASTER_TIMESTAMP_FOR_ALL_?"true":"false");
-    } 
-        else ROS_WARN("  'utstamps' Parameter not set, using default behavior utstamps=%s",!MASTER_TIMESTAMP_FOR_ALL_?"true":"false");
-    
     if (nh_pvt_.getParam("color", color_)) 
         ROS_INFO("  color set to: %s",color_?"true":"false");
         else ROS_WARN("  'color' Parameter not set, using default behavior color=%s",color_?"true":"false");
@@ -281,35 +234,6 @@ void acquisition::Capture::read_parameters() {
     if (nh_pvt_.getParam("to_ros", EXPORT_TO_ROS_)) 
         ROS_INFO("  Exporting images to ROS: %s",EXPORT_TO_ROS_?"true":"false");
         else ROS_WARN("  'to_ros' Parameter not set, using default behavior to_ros=%s",EXPORT_TO_ROS_?"true":"false");
-
-    if (nh_pvt_.getParam("time", TIME_BENCHMARK_)) 
-        ROS_INFO("  Displaying timing details: %s",TIME_BENCHMARK_?"true":"false");
-        else ROS_WARN("  'time' Parameter not set, using default behavior time=%s",TIME_BENCHMARK_?"true":"false");
-
-    if (nh_pvt_.getParam("skip", skip_num_)){
-        if (skip_num_ >0) ROS_INFO("  No. of images to skip set to: %d",skip_num_);
-        else {
-            skip_num_=20;
-            ROS_WARN("  Provided 'skip' is not valid, using default behavior, skip=%d",skip_num_);
-        }
-    } else ROS_WARN("  'skip' Parameter not set, using default behavior: skip=%d",skip_num_);
-
-    if (nh_pvt_.getParam("delay", init_delay_)){
-        if (init_delay_>=0) ROS_INFO("  Init sleep delays set to : %0.2f sec",init_delay_);
-        else {
-            init_delay_=1;
-            ROS_WARN("  Provided 'delay' is not valid, using default behavior, delay=%f",init_delay_);
-        }
-    } else ROS_WARN("  'delay' Parameter not set, using default behavior: delay=%f",init_delay_);
-
-    if (nh_pvt_.getParam("fps", master_fps_)){
-        if (master_fps_>=0) ROS_INFO("  Master cam fps set to : %0.2f",master_fps_);
-        else {
-            master_fps_=20;
-            ROS_WARN("  Provided 'fps' is not valid, using default behavior, fps=%0.2f",master_fps_);
-        }
-    }
-        else ROS_WARN("  'fps' Parameter not set, using default behavior: fps=%0.2f",master_fps_);
 
     if (nh_pvt_.getParam("exp", exposure_time_)){
         if (exposure_time_ >0) ROS_INFO("  Exposure set to: %.1f",exposure_time_);
@@ -333,15 +257,6 @@ void acquisition::Capture::read_parameters() {
             ROS_INFO_STREAM("    save_type set as: "<<ext_);
             ext_="."+ext_;
         }else ROS_WARN("    'save_type' Parameter not set, using default behavior save=%d",SAVE_);
-    }
-
-    if (SAVE_){
-        if (nh_pvt_.getParam("frames", nframes_)) {
-            if (nframes_>0){
-                FIXED_NUM_FRAMES_ = true;
-                ROS_INFO("    Number of frames to be recorded: %d", nframes_ );
-            }else ROS_INFO("    Frames will be recorded until user termination");
-        }else ROS_WARN("    'frames' Parameter not set, using defult behavior, frames will be recorded until user termination");
     }
 
     bool intrinsics_list_provided = false;
@@ -558,20 +473,15 @@ void acquisition::Capture::save_frames()
     try{
         for (unsigned int i = 0; i < numCameras_; i++) {
             // TRY to pop from the top of the queue
-            if(Save_queue_vec_[i]->try_pop(frames_[i])){
-                /*    
-                if (MASTER_TIMESTAMP_FOR_ALL_)
-                    timestamp = time_stamps_[MASTER_CAM_];
-                else
-                    timestamp = time_stamps_[i];
-                */
-                timestamp = to_string(t);
+            if(Save_queue_vec_[i]->try_pop(frames_)){
+                
+                timestamp = to_string(frames_->getTimeCam());
                 ostringstream filename;
                 filename<< path_ << cam_names_[i] << "/" << timestamp << ext_;
                 ROS_DEBUG_STREAM("Saving image at " << filename.str());
-                //ros image names 
-                mesg.name.push_back(filename.str());
-                imwrite(filename.str(), frames_[i]);
+                frames_->saveImg(filename.str());
+                delete frames_;
+                frames_ = NULL;
             }
         }
         save_mat_time_ = ros::Time::now().toSec() - t;
@@ -663,7 +573,7 @@ std::string acquisition::Capture::todays_date()
 void acquisition::Capture::ConfigureImageEvents(int idx)
 {
     // Create image event
-    shared_ptr<tbb::concurrent_queue<Mat>> save_queue_ptr(new tbb::concurrent_queue<Mat>);
+    shared_ptr<tbb::concurrent_queue<cvMatContainer*>> save_queue_ptr(new tbb::concurrent_queue<cvMatContainer*>);
     shared_ptr<tbb::concurrent_queue<Mat>> ros_queue_ptr(new tbb::concurrent_queue<Mat>);
     cams[idx].RegisterEvent( color_, EXPORT_TO_ROS_ , \
                             SAVE_, ros_queue_ptr, save_queue_ptr);

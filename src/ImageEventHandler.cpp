@@ -2,7 +2,7 @@
 
 ImageEventHandler::ImageEventHandler(CameraPtr pCam, bool if_color, bool to_ros, bool save,
         const shared_ptr<tbb::concurrent_queue<Mat>>& ros_queue_ptr, 
-        const shared_ptr<tbb::concurrent_queue<Mat>>& save_queue_ptr)
+        const shared_ptr<tbb::concurrent_queue<cvMatContainer*>>& save_queue_ptr)
 { 
     // Retrieve device serial number
     INodeMap & nodeMap = pCam->GetTLDeviceNodeMap();
@@ -21,28 +21,6 @@ ImageEventHandler::ImageEventHandler(CameraPtr pCam, bool if_color, bool to_ros,
     this->SAVE_queue = save_queue_ptr;
     this->ROS_queue = ros_queue_ptr;
 }
-
-// ImageEventHandler::ImageEventHandler(acquisition::Camera & cam, bool if_color, bool to_ros, bool save,
-//         const shared_ptr<tbb::concurrent_queue<Mat>>& ros_queue_ptr, 
-//         const shared_ptr<tbb::concurrent_queue<Mat>>& save_queue_ptr)
-// { 
-//     // Retrieve device serial number
-//     INodeMap & nodeMap = cam.GetTLDeviceNodeMap();
-//     m_deviceSerialNumber = "";
-//     CStringPtr ptrDeviceSerialNumber = nodeMap.GetNode("m_deviceSerialNumber");
-//     if (IsAvailable(ptrDeviceSerialNumber) && IsReadable(ptrDeviceSerialNumber))
-//     {
-//             m_deviceSerialNumber = ptrDeviceSerialNumber->GetValue();
-//     }
-//     // Initialize image counter to 0
-//     m_imageCnt = 0;
-    
-//     this->COLOR_ = if_color;
-//     this->SAVE_ = save;
-//     this->TO_ROS_ = to_ros;
-//     this->SAVE_queue = save_queue_ptr;
-//     this->ROS_queue = ros_queue_ptr;
-// }
 
 ImageEventHandler::~ImageEventHandler() {}
 
@@ -65,7 +43,10 @@ void ImageEventHandler::OnImageEvent(ImagePtr image)
         {
             // Print image information
             ROS_DEBUG_STREAM("Grabbed image " << m_imageCnt << ", width = " << image->GetWidth() << ", height = " << image->GetHeight());
-            // Convert image to mono 8
+            // from chunkdata to get timestamp
+            ChunkData chunkData = image->GetChunkData();
+            int64_t timestamp = chunkData.GetTimestamp();
+            // Convert image
             ImagePtr convertedImage;
             if (COLOR_)
                 convertedImage = image->Convert(PixelFormat_BGR8, HQ_LINEAR); 
@@ -73,7 +54,7 @@ void ImageEventHandler::OnImageEvent(ImagePtr image)
                 convertedImage = image->Convert(PixelFormat_Mono8, HQ_LINEAR); 
             // Increment image counter
             m_imageCnt++;
-            save2queue(convertedImage);
+            save2queue(convertedImage, timestamp, m_imageCnt);
         }
     }
 }
@@ -84,7 +65,7 @@ int ImageEventHandler::getImageCount()
 }
 
 
-void ImageEventHandler::save2queue(ImagePtr convertedImage)
+void ImageEventHandler::save2queue(ImagePtr convertedImage, int64_t time_stamp,  int framecount)
 {	
     unsigned int XPadding = convertedImage->GetXPadding();
     unsigned int YPadding = convertedImage->GetYPadding();
@@ -97,8 +78,10 @@ void ImageEventHandler::save2queue(ImagePtr convertedImage)
         img = Mat(colsize + YPadding, rowsize + XPadding, CV_8UC3, convertedImage->GetData(), convertedImage->GetStride());
     else
         img = Mat(colsize + YPadding, rowsize + XPadding, CV_8UC1, convertedImage->GetData(), convertedImage->GetStride());
-    if(SAVE_)
-        SAVE_queue->push(img.clone());
+    if(SAVE_){
+        cvMatContainer* temp_container = new cvMatContainer(img, time_stamp, framecount, true);
+        SAVE_queue->push(temp_container);
+    }
     if(TO_ROS_ )//&& (m_imageCnt%2)==0 )
         ROS_queue->push(img.clone());
 

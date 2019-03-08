@@ -53,7 +53,7 @@ namespace acquisition {
         INodeMap & GetTLDeviceNodeMap();
         void RegisterEvent(bool Color_, bool Export2ROS_, bool Save_, \
             const shared_ptr<tbb::concurrent_queue<Mat>> & ROS_queue, \
-            const shared_ptr<tbb::concurrent_queue<Mat>> & Save_queue);
+            const shared_ptr<tbb::concurrent_queue<cvMatContainer*>> & Save_queue);
         void ResetEvent();
 
         int ConfigureChunkData();

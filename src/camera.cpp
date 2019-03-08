@@ -254,7 +254,7 @@ INodeMap & acquisition::Camera::GetTLDeviceNodeMap()
 
 void acquisition::Camera::RegisterEvent(bool Color_, bool Export2ROS_, bool Save_, \
             const shared_ptr<tbb::concurrent_queue<Mat>> & ROS_queue, \
-            const shared_ptr<tbb::concurrent_queue<Mat>> & Save_queue)
+            const shared_ptr<tbb::concurrent_queue<cvMatContainer*>> & Save_queue)
 {
     if(!pCam_->IsInitialized())
         ROS_WARN("Camera not initialized");
@@ -301,11 +301,11 @@ int acquisition::Camera::ConfigureChunkData()
             CBooleanPtr ptrChunkModeActive = nodeMap.GetNode("ChunkModeActive");
             if (!IsAvailable(ptrChunkModeActive) || !IsWritable(ptrChunkModeActive))
             {
-                    cout << "Unable to activate chunk mode. Aborting..." << endl << endl;
+                    ROS_WARN("Unable to activate chunk mode. Aborting...");
                     return -1;
             }
             ptrChunkModeActive->SetValue(true);
-            cout << "Chunk mode activated..." << endl;
+            ROS_INFO("Chunk mode activated");
             // Enable all types of chunk data
            
             NodeList_t entries;
@@ -313,12 +313,12 @@ int acquisition::Camera::ConfigureChunkData()
             CEnumerationPtr ptrChunkSelector = nodeMap.GetNode("ChunkSelector");
             if (!IsAvailable(ptrChunkSelector) || !IsReadable(ptrChunkSelector))
             {
-                    cout << "Unable to retrieve chunk selector. Aborting..." << endl << endl;
+                    ROS_WARN("Unable to retrieve chunk selector. Aborting...");
                     return -1;
             }
             // Retrieve entries
             ptrChunkSelector->GetEntries(entries);
-            cout << "Enabling entries..." << endl;
+            ROS_INFO("Enabling entries...");
             for (int i = 0; i < entries.size(); i++)
             {
                     // Select entry to be enabled

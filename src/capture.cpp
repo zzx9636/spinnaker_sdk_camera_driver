@@ -477,7 +477,6 @@ void acquisition::Capture::deinit_cameras() {
 void acquisition::Capture::create_cam_directories() {
 
     ROS_INFO_STREAM("Creating camera directories...");
-    ostringstream base_folder;
     base_folder<<path_<<"RGB_cam_"<<todays_date_<<"/";
      ROS_INFO_STREAM("Create folder"<<base_folder.str());
     if (mkdir(base_folder.str().c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) < 0) {
@@ -533,7 +532,7 @@ void acquisition::Capture::save_frames()
                 
                 timestamp = to_string(frames_->getTimeCam());
                 ostringstream filename;
-                filename<< path_ << cam_names_[i] << "/" << timestamp << ext_;
+                filename<< base_folder.str() << cam_names_[i] << "/" << timestamp << ext_;
                 ROS_DEBUG_STREAM("Saving image at " << filename.str());
                 frames_->saveImg(filename.str());
                 *(logfile_vec_[i])<< frames_->getTimeCam()<<"\t"<< frames_->getFrameNum()<<"\n";

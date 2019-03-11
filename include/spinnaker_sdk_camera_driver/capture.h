@@ -81,6 +81,7 @@ namespace acquisition {
         vector<shared_ptr<tbb::concurrent_queue<Mat>>> ROS_queue_vec_;   
         string path_;
         string todays_date_;
+        ostringstream base_folder;
         vector<std::shared_ptr<ofstream>> logfile_vec_;
 
         time_t time_now_;

@@ -404,9 +404,9 @@ void acquisition::Capture::init_cameras() {
             ROS_INFO("Set Gain");
             if(color_){
                 // set WB mode
-                cams[i].setEnumValue("BalanceRatioSelector", "Red");
                 if (balance_ > 0) { 
                     cams[i].setEnumValue("BalanceWhiteAuto", "Off");
+                    cams[i].setEnumValue("BalanceRatioSelector", "Red");
                     cams[i].setFloatValue("BalanceRatio", balance_);
                 } else {
                     cams[i].setEnumValue("BalanceWhiteAuto", "Continuous");

@@ -3,16 +3,18 @@
   <env name="ROSCONSOLE_CONFIG_FILE" value="$(find spinnaker_sdk_camera_driver)/cfg/std_console.conf"/>
 
   <!-- acquisition.lauynch -->
-  <arg name="binning"		    default="2"	doc="Binning for cameras, when changing from 2 to 1 cameras need to be unplugged and replugged"/>
-  <arg name="color"		        default="false"	doc="Should color images be used (only works on models that support color images)"/>
+  <arg name="binning"		        default="2"	doc="Binning for cameras, when changing from 2 to 1 cameras need to be unplugged and replugged"/>
+  <arg name="color"		          default="false"	doc="Should color images be used (only works on models that support color images)"/>
   <arg name="exp"               default="0"	doc="Exposure setting for cameras"/>
+  <arg name="gain"              default="0" doc="Gain Setting for cameras"/>
+  <arg name="gamma"             default="0" doc="Gamma Correction for cameras"/>
+  <arg name="balance"           default="0" doc="White Balance Setting for cameras for color only"/>
   <arg name="output"            default="screen"	doc="display output to screen or log file"/>
   <arg name="save"              default="false"	doc="flag whether images should be saved or not"/>
   <arg name="save_path"         default="~"	doc="location to save the image data"/>
   <arg name="save_type"         default="tiff"	doc="Type of file type to save to when saving images locally: tiff, bmp, jpeg etc." />
   <arg name="to_ros"            default="true"	doc="Flag whether images should be published to ROS" />
-  <arg name="config_file"       default="$(find spinnaker_sdk_camera_driver)/params/multi-cam.yaml" doc="File specifying the parameters of the camera_array"/>
-  <!--arg name="config_file"       default="$(find spinnaker_sdk_camera_driver)/params/cam_L_params.yaml" doc="File specifying the parameters of the camera_array"/-->
+  <arg name="config_file"       default="$(find spinnaker_sdk_camera_driver)/params/cam_L_params.yaml" doc="File specifying the parameters of the camera_array"/>
 
   <!-- load the acquisition node -->
   <node pkg="spinnaker_sdk_camera_driver" type="acquisition_node" name="acquisition_node" output="screen"

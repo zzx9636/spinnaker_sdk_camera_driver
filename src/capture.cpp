@@ -49,6 +49,10 @@ acquisition::Capture::Capture():nh_(),nh_pvt_ ("~") {
 
     // default values for the parameters are set here. Should be removed eventually!!
     exposure_time_ = 0 ; // default as 0 = auto exposure
+    gain_ = 0;
+    balance_ = 0;
+    gamma_ = 0;
+
 
     ext_ = ".tiff";
     EXPORT_TO_ROS_ = false;
@@ -94,8 +98,8 @@ void acquisition::Capture::load_cameras() {
 
     for (int i=0; i<numCameras_; i++) {
         acquisition::Camera cam(camList_.GetByIndex(i));
-        ROS_INFO_STREAM("  -"<<cam.get_id());
-       }
+        ROS_INFO_STREAM("  - "<<cam.get_id());
+    }
 
     bool master_set = false;
     int cam_counter = 0;
@@ -104,11 +108,12 @@ void acquisition::Capture::load_cameras() {
         for (int i=0; i<numCameras_; i++) {
         
             acquisition::Camera cam(camList_.GetByIndex(i));
-            
+                
             if (cam.get_id().compare(cam_ids_[j]) == 0) {
+                ROS_INFO_STREAM("  Find "<<cam.get_id());
                 current_cam_found=true;
     
-                cam.set_cam_type(cam_types_[i]);        
+                cam.set_cam_type(cam_types_[j]);        
                 cams.push_back(cam);
                 
                 camera_image_pubs.push_back(nh_.advertise<sensor_msgs::Image>("RGB_camera/"+cam_names_[j]+"/image_raw", 1));
@@ -151,8 +156,8 @@ void acquisition::Capture::load_cameras() {
         }
         if (!current_cam_found) ROS_WARN_STREAM("   Camera "<<cam_ids_[j]<<" not detected!!!");
     }
+    numCameras_ = cams.size();
     ROS_ASSERT_MSG(cams.size(),"None of the connected cameras are in the config list!");
-    ROS_ASSERT_MSG(master_set,"The camera supposed to be the master isn't connected!");
 }
 
 void acquisition::Capture::read_parameters() {
@@ -186,7 +191,7 @@ void acquisition::Capture::read_parameters() {
     ROS_INFO("  Camera IDs:");
     
     std::vector<int> cam_id_vec;
-    ROS_ASSERT_MSG(nh_pvt_.getParam("cam_ids", cam_id_vec),"If cam_aliases are provided, they should be the same number as cam_ids and should correspond in order!");
+    ROS_ASSERT_MSG(nh_pvt_.getParam("cam_ids", cam_id_vec),"Camera ID must be provided!");
     int num_ids = cam_id_vec.size();
     for (int i=0; i < num_ids; i++){
         cam_ids_.push_back(to_string(cam_id_vec[i]));
@@ -239,6 +244,21 @@ void acquisition::Capture::read_parameters() {
         if (exposure_time_ >0) ROS_INFO("  Exposure set to: %.1f",exposure_time_);
         else ROS_INFO("  'exp'=%0.f, Setting autoexposure",exposure_time_);
     } else ROS_WARN("  'exp' Parameter not set, using default behavior: Automatic Exposure ");
+
+    if (nh_pvt_.getParam("gain", gain_)){
+        if (gain_ >0) ROS_INFO("  Gain set to: %.1f",gain_);
+        else ROS_INFO("  'gain'=%0.f, Setting auto gain",gain_);
+    } else ROS_WARN("  'gain' Parameter not set, using default behavior: Automatic Gain Control ");
+
+    if (nh_pvt_.getParam("balance", balance_)){
+        if (balance_ >0) ROS_INFO("  White Balance set to: %.1f",balance_);
+        else ROS_INFO("  'balance'=%0.f, Setting auto white balance",balance_);
+    } else ROS_WARN("  'balance' Parameter not set, using default behavior: Automatic White Balance ");
+
+    if (nh_pvt_.getParam("gamma", gamma_)){
+        if (gamma_ >0) ROS_INFO("  Gamma ratio set to: %.1f", gamma_);
+        else ROS_INFO("  'gamma'=%0.f, disable gamma correction", gamma_);
+    } else ROS_WARN("  'gamma' Parameter not set, using default behavior: Disable Gamma Correction ");
 
     if (nh_pvt_.getParam("binning", binning_)){
         if (binning_ >0) ROS_INFO("  Binning set to: %d",binning_);
@@ -350,15 +370,6 @@ void acquisition::Capture::init_cameras() {
             cams[i].init();
 
             cams[i].setEnumValue("AcquisitionMode", "Continuous");
-            // set exposure mode
-            cams[i].setEnumValue("ExposureMode", "Timed");
-            if (exposure_time_ > 0) { 
-                cams[i].setEnumValue("ExposureAuto", "Off");
-                cams[i].setFloatValue("ExposureTime", exposure_time_);
-            } else {
-                cams[i].setEnumValue("ExposureAuto", "Continuous");
-            }
-            ROS_INFO("Set Exposure");
 
             // set color mode for camera
             cams[i].set_color(color_);
@@ -372,7 +383,46 @@ void acquisition::Capture::init_cameras() {
             cams[i].setIntValue("BinningHorizontal", binning_);
             cams[i].setIntValue("BinningVertical", binning_);
             ROS_INFO("Set Binning"); 
-            
+
+            // set exposure mode
+            cams[i].setEnumValue("ExposureMode", "Timed");
+            if (exposure_time_ > 0) { 
+                cams[i].setEnumValue("ExposureAuto", "Off");
+                cams[i].setFloatValue("ExposureTime", exposure_time_);
+            } else {
+                cams[i].setEnumValue("ExposureAuto", "Continuous");
+            }
+            ROS_INFO("Set Exposure");
+
+             // set gain mode
+            if (gain_ > 0) { 
+                cams[i].setEnumValue("GainAuto", "Off");
+                cams[i].setFloatValue("Gain", gain_);
+            } else {
+                cams[i].setEnumValue("GainAuto", "Continuous");
+            }
+            ROS_INFO("Set Gain");
+            if(color_){
+                // set WB mode
+                cams[i].setEnumValue("BalanceRatioSelector", "Red");
+                if (balance_ > 0) { 
+                    cams[i].setEnumValue("BalanceWhiteAuto", "Off");
+                    cams[i].setFloatValue("BalanceRatio", balance_);
+                } else {
+                    cams[i].setEnumValue("BalanceWhiteAuto", "Continuous");
+                }
+                ROS_INFO("Set White Balance");
+            }
+
+            // set gamma correction
+            if(gamma_>0)
+            {
+                cams[i].setBoolValue("GammaEnable", true);
+                cams[i].setFloatValue("Gamma", gamma_);
+            }else{
+                cams[i].setBoolValue("GammaEnable", false);
+            }
+    
             // set to be triggerd by GPIO
             cams[i].setEnumValue("AcquisitionMode", "Continuous");
             cams[i].setEnumValue("TriggerMode", "On");

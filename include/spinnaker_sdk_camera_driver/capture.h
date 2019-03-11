@@ -90,6 +90,9 @@ namespace acquisition {
         bool color_;
         string ext_;
         float exposure_time_;
+        float gain_;
+        float balance_;
+        float gamma_;
         
         int CAM_; // active cam during live
 

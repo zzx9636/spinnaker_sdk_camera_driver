@@ -524,6 +524,7 @@ void acquisition::Capture::ROS_pub_thread()
 void acquisition::Capture::save_frames()
 {
     string timestamp;
+    string framecount;
     double t = ros::Time::now().toSec();
     try{
         for (unsigned int i = 0; i < numCameras_; i++) {
@@ -531,8 +532,9 @@ void acquisition::Capture::save_frames()
             if(Save_queue_vec_[i]->try_pop(frames_)){
                 
                 timestamp = to_string(frames_->getTimeCam());
+                framecount = to_string(frames_->getFrameNum());
                 ostringstream filename;
-                filename<< base_folder.str() << cam_names_[i] << "/" << timestamp << ext_;
+                filename<< base_folder.str() << cam_names_[i] << "/" <<cam_names_[i]<<"_"<<framecount<<"_"<< timestamp << ext_;
                 ROS_DEBUG_STREAM("Saving image at " << filename.str());
                 frames_->saveImg(filename.str());
                 *(logfile_vec_[i])<< frames_->getTimeCam()<<"\t"<< frames_->getFrameNum()<<"\n";

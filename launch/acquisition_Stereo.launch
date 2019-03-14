@@ -4,7 +4,7 @@
 
   <!-- acquisition.launch -->
   <arg name="binning"		        default="1"	doc="Binning for cameras, when changing from 2 to 1 cameras need to be unplugged and replugged"/>
-  <arg name="color"		          default="false"	doc="Should color images be used (only works on models that support color images)"/>
+  <arg name="color"		          default="true"	doc="Should color images be used (only works on models that support color images)"/>
   <arg name="exp"               default="0"	doc="Exposure setting for cameras"/>
   <arg name="gain"              default="0" doc="Gain Setting for cameras"/>
   <arg name="gamma"             default="0" doc="Gamma Correction for cameras"/>
@@ -29,6 +29,7 @@
     <param name="binning"           value="$(arg binning)" />
     <param name="color"             value="$(arg color)" />
     <param name="exp"               value="$(arg exp)" />
+    <param name="gain"              value="$(arg gain)"/>
     <param name="save"              value="$(arg save)" />
     <param name="save_type"         value="$(arg save_type)" />
     <param name="save_path"         value="$(arg save_path)" />

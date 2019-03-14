@@ -31,32 +31,31 @@ ImageEventHandler::~ImageEventHandler() {}
 void ImageEventHandler::OnImageEvent(ImagePtr image)
 {
     // Save a maximum of 10 images
-    if (m_imageCnt < mk_numImages)
+    
+    ROS_DEBUG_STREAM("Image event occurred...");
+    // Check image retrieval status
+    if (image->IsIncomplete())
     {
-        ROS_DEBUG_STREAM("Image event occurred...");
-        // Check image retrieval status
-        if (image->IsIncomplete())
-        {
-            ROS_WARN_STREAM("Image incomplete with image status " << image->GetImageStatus() << "...");
-        }
-        else
-        {
-            // Print image information
-            ROS_DEBUG_STREAM("Grabbed image " << m_imageCnt << ", width = " << image->GetWidth() << ", height = " << image->GetHeight());
-            // from chunkdata to get timestamp
-            ChunkData chunkData = image->GetChunkData();
-            int64_t timestamp = chunkData.GetTimestamp();
-            // Convert image
-            ImagePtr convertedImage;
-            if (COLOR_)
-                convertedImage = image->Convert(PixelFormat_BGR8, HQ_LINEAR); 
-            else
-                convertedImage = image->Convert(PixelFormat_Mono8, HQ_LINEAR); 
-            // Increment image counter
-            m_imageCnt++;
-            save2queue(convertedImage, timestamp, m_imageCnt);
-        }
+        ROS_WARN_STREAM("Image incomplete with image status " << image->GetImageStatus() << "...");
     }
+    else
+    {
+        // Print image information
+        ROS_DEBUG_STREAM("Grabbed image " << m_imageCnt << ", width = " << image->GetWidth() << ", height = " << image->GetHeight());
+        // from chunkdata to get timestamp
+        ChunkData chunkData = image->GetChunkData();
+        int64_t timestamp = chunkData.GetTimestamp();
+        // Convert image
+        ImagePtr convertedImage;
+        if (COLOR_)
+            convertedImage = image->Convert(PixelFormat_BGR8, HQ_LINEAR); 
+        else
+            convertedImage = image->Convert(PixelFormat_Mono8, HQ_LINEAR); 
+        // Increment image counter
+        save2queue(convertedImage, timestamp, m_imageCnt);
+    }
+    m_imageCnt++;
+    
 }
 // Getter for image counter
 int ImageEventHandler::getImageCount()

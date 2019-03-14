@@ -458,6 +458,8 @@ void acquisition::Capture::init_cameras() {
             cams[i].setEnumValue("GevIEEE1588Mode", "SlaveOnly");
             ROS_INFO("Set PTP enabled");
 
+            //cams[i].setTLIntValue("GevPacketResendTimeout", 1000);
+
             ConfigureImageEvents(i);
             ROS_INFO("Image Event Configured");
         }

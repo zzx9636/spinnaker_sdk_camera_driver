@@ -147,6 +147,17 @@ void acquisition::Camera::setBoolValue(string setting, bool val) {
     
 }
 
+void acquisition::Camera::setTLIntValue(string setting, int val) {
+
+    INodeMap & nodeMap = pCam_->GetTLDeviceNodeMap();;
+    
+    CBooleanPtr ptr = nodeMap.GetNode(setting.c_str());
+    if (!IsAvailable(ptr) || !IsWritable(ptr)) {
+        ROS_FATAL_STREAM("Unable to set " << setting << " to " << val << " (ptr retrieval). Aborting...");
+    }
+    ptr->SetValue(val);
+    ROS_DEBUG_STREAM(setting << " set to " << val);
+}
 
 
 void acquisition::Camera::setResolutionPixels(int width, int height) {

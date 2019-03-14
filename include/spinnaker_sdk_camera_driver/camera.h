@@ -35,6 +35,7 @@ namespace acquisition {
         void setIntValue(string, int);
         void setFloatValue(string, float);
         void setBoolValue(string, bool);
+        void setTLIntValue(string setting, int val);
 
         void setISPEnable();
         void setFREnable();

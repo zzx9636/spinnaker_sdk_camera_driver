@@ -241,23 +241,47 @@ void acquisition::Capture::read_parameters() {
         else ROS_WARN("  'to_ros' Parameter not set, using default behavior to_ros=%s",EXPORT_TO_ROS_?"true":"false");
 
     if (nh_pvt_.getParam("exp", exposure_time_)){
-        if (exposure_time_ >0) ROS_INFO("  Exposure set to: %.1f",exposure_time_);
-        else ROS_INFO("  'exp'=%0.f, Setting autoexposure",exposure_time_);
+        if (exposure_time_ >0)
+        {
+            if(exposure_time_<20 || exposure_time_>3e7)
+            {
+                ROS_WARN("  Invalid Exposure value: %.1f. Valid exposure time is between 20 and 3e7. Set to auto.",exposure_time_);
+                exposure_time_ = 0;
+            }else ROS_INFO("  Exposure set to: %.1f",exposure_time_);
+        } else ROS_INFO("  'exp'=%0.f, Setting autoexposure",exposure_time_);
     } else ROS_WARN("  'exp' Parameter not set, using default behavior: Automatic Exposure ");
 
     if (nh_pvt_.getParam("gain", gain_)){
-        if (gain_ >0) ROS_INFO("  Gain set to: %.1f",gain_);
+        if (gain_ >0) 
+        {
+            if(gain_>47.9943)
+            {
+                ROS_WARN("  Invalid gain value: %.1f. Valid gain is between 0 and 47.9943. Set to auto.",gain_);
+                gain_ = 0;
+            }else ROS_INFO("  Gain set to: %.1f",gain_);
+        }
         else ROS_INFO("  'gain'=%0.f, Setting auto gain",gain_);
     } else ROS_WARN("  'gain' Parameter not set, using default behavior: Automatic Gain Control ");
 
     if (nh_pvt_.getParam("balance", balance_)){
-        if (balance_ >0) ROS_INFO("  White Balance set to: %.1f",balance_);
-        else ROS_INFO("  'balance'=%0.f, Setting auto white balance",balance_);
+        if (balance_ >0){
+            if(balance_<0.25 || balance_>4)
+            {
+                ROS_WARN("  Invalid balance ratio value: %.1f. Valid balance ratio is between 0.25 and 4. Set to auto.",balance_);
+                balance_ = 0;
+            }else ROS_INFO("  White Balance set to: %.1f",balance_);
+        }else ROS_INFO("  'balance'=%0.f, Setting auto white balance",balance_);
     } else ROS_WARN("  'balance' Parameter not set, using default behavior: Automatic White Balance ");
 
     if (nh_pvt_.getParam("gamma", gamma_)){
-        if (gamma_ >0) ROS_INFO("  Gamma ratio set to: %.1f", gamma_);
-        else ROS_INFO("  'gamma'=%0.f, disable gamma correction", gamma_);
+        if (gamma_ >0)
+        {
+            if(gamma_<0.25 || gamma_>4)
+            {
+                ROS_WARN("  Invalid gamma ratio value: %.1f. Valid gamma ratio is between 0.25 and 4. Set to auto.",gamma_);
+                gamma_ = 0;
+            }else ROS_INFO("  Gamma set to: %.1f",gamma_);
+        } else ROS_INFO("  'gamma'=%0.f, disable gamma correction", gamma_);
     } else ROS_WARN("  'gamma' Parameter not set, using default behavior: Disable Gamma Correction ");
 
     if (nh_pvt_.getParam("binning", binning_)){

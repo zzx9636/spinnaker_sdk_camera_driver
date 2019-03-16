@@ -252,12 +252,12 @@ void acquisition::Capture::read_parameters() {
     } else ROS_WARN("  'exp' Parameter not set, using default behavior: Automatic Exposure ");
 
     if (nh_pvt_.getParam("gain", gain_)){
-        if (gain_ >0) 
+        if (gain_ >=0) 
         {
             if(gain_>47.9943)
             {
                 ROS_WARN("  Invalid gain value: %.1f. Valid gain is between 0 and 47.9943. Set to auto.",gain_);
-                gain_ = 0;
+                gain_ = -1;
             }else ROS_INFO("  Gain set to: %.1f",gain_);
         }
         else ROS_INFO("  'gain'=%0.f, Setting auto gain",gain_);
@@ -419,7 +419,7 @@ void acquisition::Capture::init_cameras() {
             ROS_INFO("Set Exposure");
 
              // set gain mode
-            if (gain_ > 0) { 
+            if (gain_ >= 0) { 
                 cams[i].setEnumValue("GainAuto", "Off");
                 cams[i].setFloatValue("Gain", gain_);
             } else {

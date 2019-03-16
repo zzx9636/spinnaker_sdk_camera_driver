@@ -5,10 +5,10 @@
   <!-- acquisition.launch -->
   <arg name="binning"		        default="1"	doc="Binning for cameras, when changing from 2 to 1 cameras need to be unplugged and replugged"/>
   <arg name="color"		          default="true"	doc="Should color images be used (only works on models that support color images)"/>
-  <arg name="exp"               default="0"	doc="Exposure setting for cameras"/>
-  <arg name="gain"              default="0" doc="Gain Setting for cameras"/>
-  <arg name="gamma"             default="0" doc="Gamma Correction for cameras"/>
-  <arg name="balance"           default="0" doc="White Balance Setting for cameras for color only"/>
+  <arg name="exp"               default="-1"	doc="Exposure setting for cameras"/>
+  <arg name="gain"              default="-1" doc="Gain Setting for cameras"/>
+  <arg name="gamma"             default="-1" doc="Gamma Correction for cameras"/>
+  <arg name="balance"           default="-1" doc="White Balance Setting for cameras for color only"/>
   <arg name="output"            default="screen"	doc="display output to screen or log file"/>
   <arg name="save"              default="false"	doc="flag whether images should be saved or not"/>
   <arg name="save_path"         default="~"	doc="location to save the image data"/>
